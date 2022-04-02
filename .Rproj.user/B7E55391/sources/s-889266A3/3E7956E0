@@ -3,7 +3,7 @@
     "path": "~/Library/CloudStorage/OneDrive-Personal/OMSA/6203/Term Project/CoastingOnCouches/crispy-octo-waffle/couches.rmd",
     "project_path": "couches.rmd",
     "type": "r_markdown",
-    "hash": "2752424424",
+    "hash": "0",
     "contents": "",
     "dirty": false,
     "created": 1648885091238.0,
@@ -12,15 +12,15 @@
     "properties": {
         "source_window_id": "",
         "Source": "Source",
-        "cursorPosition": "121,29",
-        "scrollLine": "107"
+        "cursorPosition": "66,43",
+        "scrollLine": "0"
     },
     "folds": "",
-    "lastKnownWriteTime": 1648888827,
+    "lastKnownWriteTime": 1648890343,
     "encoding": "UTF-8",
     "collab_server": "",
     "source_window": "",
-    "last_content_update": 1648888827316,
+    "last_content_update": 1648890343718,
     "read_only": false,
     "read_only_alternatives": []
 }
