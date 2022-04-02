@@ -1,8 +1,0 @@
-"0","la_listing <- la_listing %>% "
-"0","              dplyr::filter(Price < 1000 , !is.na(Beds), !is.na(Baths), !is.na(Price), !is.na(Rating)) %>% "
-"0","                dplyr::filter(Capacity < 9) %>% "
-"0","                mutate(ln_Reviews = log(1+Reviews)) %>% "
-"0","                mutate(ln_Monthly_Reviews = log(1+Monthly_Reviews))"
-"2","Error in dplyr::filter(., Price < 1000, !is.na(Beds), !is.na(Baths), !is.na(Price),  : 
-  object 'la_listing' not found
-"
