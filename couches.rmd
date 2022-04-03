@@ -10,6 +10,7 @@ output: pdf_document
 ```{r}
 sin_listing <- read.csv("./data/sin_listings.csv")
 ```
+
 ## 1.2 Data Wrangling
 This is a function that wrangles AirBnb data into an analysable chunk. Because we will be doing the same for multiple cities, we will do a function out of this. The function is based on top of code shared in the lecture for Module 2.
 
@@ -116,7 +117,15 @@ library(stringr)
 library("ggExtra")
 library(psych)
 
+sin_listing.clean <-sin_listing.clean %>%
+              dplyr::filter(Price < 1000, !is.na(Price)) %>%
+                dplyr::filter(Capacity < 9) %>%
+                mutate(ln_Reviews = log(1+Reviews)) %>%
+                mutate(ln_Monthly_Reviews = log(1+Monthly_Reviews))
+sin_listing.clean
+```
 
+```{r}
 lm0 <- lm(Price ~ Capacity, data = sin_listing.clean)
 summary(lm0)
 stargazer(lm0, type = "text")
@@ -128,11 +137,31 @@ geom_smooth(method=lm,   # Add linear regression lines
            fullrange=TRUE) +
 theme(axis.text.x = element_text(size=15), axis.text.y = element_text(size=15), 
         axis.title=element_text(size=15,face="bold"))
-
 # vif(lm0)
 ```
+```{r}
 
+# The moderating effect of type of room. Lets model that.
 
+lm1 <- lm(Price ~ Private_ind + House_ind, data = sin_listing.clean)
+summary(lm1)
+stargazer(lm1, type = "text")
+```
+```{r}
+#Regression with Capacity and Dummy Variables for type of room:
+
+lm2 <- lm(Price ~ Capacity + Private_ind + House_ind, data = sin_listing.clean)
+summary(lm2)
+stargazer(lm2, type = "text")
+```
+
+```{r}
+#Regression with Capacity,Dummy Variables and interaction between the two:
+lm3 <- lm(Price ~ Capacity+Private_ind + House_ind+P_Cap+H_Cap, data = sin_listing.clean)
+summary(lm3)
+stargazer(lm3,type = "text")
+
+```
 ```{r}
 # la_listing <- la_listing %>%
 #               dplyr::filter(Price < 5000 , !is.na(Beds), !is.na(Baths), !is.na(Price), !is.na(Rating)) %>%
