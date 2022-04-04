@@ -168,4 +168,34 @@ stargazer(lm3,type = "text")
 #                 dplyr::filter(Capacity < 9) %>%
 #                 mutate(ln_Reviews = log(1+Reviews)) %>%
 #                 mutate(ln_Monthly_Reviews = log(1+Monthly_Reviews))
+
+```
+```{r}
+library(mice)
+
+# Remove Baths as Columns are all NA
+# Remove ln_Price, Latitude/Longitude
+sin_listing.clean_subset <- sin_listing.clean[,!names(sin_listing.clean) %in% c('ln_Price','Baths','Baths_Sqr','ln_Baths','latitude','longitude')]
+
+
+# Imputing Missing Data
+md.pattern(sin_listing.clean_subset)
+imputed_Data <- mice(sin_listing.clean_subset, m=5, maxit = 50, method = 'pmm', seed = 100)
+sin_listing.clean_imputed <- complete(imputed_Data,2)
+md.pattern(sin_listing.clean_imputed)
+
+#Define Smallest and Full Model 
+minmod = lm(Price~1, data = sin_listing.clean_imputed)
+fullmod = lm(Price~. , data = sin_listing.clean_imputed)
+
+#Define Smallest and Full Model - Without Neighbourhood
+#minmod = lm(Price~1, data = sin_listing.clean_imputed[,!names(sin_listing.clean_imputed) %in% c('Neighbourhood')])
+#fullmod = lm(Price~. , data = sin_listing.clean_imputed[,!names(sin_listing.clean_imputed) %in% c('Neighbourhood')])
+
+
+# Using BIC: k=log(nobs(fullmod), Using AIC: k=2
+backward_regression = step(fullmod, scope = list(lower = minmod, upper = fullmod),direction = "backward", k=log(nobs(fullmod)), trace=F)
+forward_regression = step(minmod, scope = list(lower = minmod, upper = fullmod),direction = "forward", k=log(nobs(fullmod)), trace=F)
+summary(backward_regression)
+summary(forward_regression)
 ```

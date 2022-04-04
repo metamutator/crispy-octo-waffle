@@ -109,7 +109,7 @@ Realistically however, we suspect this is a listing from somewhere further south
 
 Which is a great lesson for analysing place data from Singapore. We are a very compact country, and a few decimal points' worth of difference in lat-long coordinates can indeed be the difference between a much loved amusement part ride or a high-end dwelling.
 
-
+Let's filter rows for ``Price`` < 1000.
 ```{r}
 library(car)
 library(ggplot2)
@@ -126,6 +126,7 @@ sin_listing.clean
 ```
 
 ```{r}
+library("PerformanceAnalytics")
 lm0 <- lm(Price ~ Capacity, data = sin_listing.clean)
 summary(lm0)
 stargazer(lm0, type = "text")
@@ -155,12 +156,27 @@ summary(lm2)
 stargazer(lm2, type = "text")
 ```
 
+### 
 ```{r}
 #Regression with Capacity,Dummy Variables and interaction between the two:
 lm3 <- lm(Price ~ Capacity+Private_ind + House_ind+P_Cap+H_Cap, data = sin_listing.clean)
 summary(lm3)
 stargazer(lm3,type = "text")
 
+```
+
+### 2.4 Correlation Matrix
+Let's find a correlation matrix for the various variables.
+
+```{r}
+sin_listing.clean_cap = select(sin_listing.clean, Price, Capacity, Private_ind, House_ind, P_Cap, H_Cap)
+sin_listing.clean_cap
+chart.Correlation(sin_listing.clean_cap, histogram=TRUE, pch=19)
+
+library(corrplot)
+sin_listing.clean_corr <- cor(sin_listing.clean_cap, use = "complete.obs")
+head(round(sin_listing.clean_corr, 2))
+corrplot(sin_listing.clean_corr)
 ```
 ```{r}
 # la_listing <- la_listing %>%
