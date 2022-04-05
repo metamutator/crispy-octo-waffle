@@ -77,12 +77,21 @@ introduce(sin_listing)
 plot_intro(sin_listing)
 plot_missing(sin_listing)
 plot_bar(sin_listing)
+```
+
+```{r}
+plot_str(sin_listing.clean, type="r")
+introduce(sin_listing.clean)
+plot_intro(sin_listing.clean)
+plot_missing(sin_listing.clean)
 plot_bar(sin_listing.clean)
 plot_bar(sin_listing.clean$Region)
 plot_bar(sin_listing.clean$Neighbourhood)
-plot_qq(sin_listing.clean)
-```
+pca_df <- na.omit(sin_listing.clean[, c("Price", "Room_Type", "Reviews", "Beds", "Capacity", "Monthly_Reviews")])
+plot_qq(pca_df)
+plot_prcomp(pca_df, variance_cap = 0.9, nrow = 2L, ncol=2L)
 
+```
 ## 1.3 Outlier Detection
 We will now check out outliers in our data for various parameters.
 
@@ -105,6 +114,7 @@ generate_price_boxplot(sin_listing.clean, "Singapore", "Property_Type") #, sin_l
 generate_price_boxplot(sin_listing.clean, "Singapore", "Capacity") #, sin_listing.clean$)
 generate_price_boxplot(sin_listing.clean, "Singapore", "Beds") #, sin_listing.clean$)
 generate_price_boxplot(sin_listing.clean, "Singapore", "Region") #, sin_listing.clean$)
+generate_price_boxplot(sin_listing.clean, "Singapore", "Neighbourhood") #, sin_listing.clean$)
 ```
 That was a visual analysis of outliers. Clearly, there are a few offerings that are very highly priced. Let's look at them in a bit more depth, especially those units with rental prices above $5000. 
 
