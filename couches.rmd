@@ -70,6 +70,7 @@ head(sin_listing.clean)
 ```
 
 ```{r}
+if if (!require(DataExplorer)) install.packages("DataExplorer")
 library(DataExplorer)
 
 plot_str(sin_listing, type="r")
