@@ -1,26 +1,107 @@
 ---
 title: "Coasting on Couches"
-output: pdf_document
+output: pdf_document #html_document
+# runtime: shiny
+author: Akshay *Regulagedda*, Kevin *Tan*, Wan Ling *Loh*, Zach *Zhang*, Xin Ying *Goh*
+editor_options: 
+  chunk_output_type: inline
 ---
+# 0. Introduction
+This document lists the exploratory data analysis, model build and analysis for *Coasting on Couches*, the term project for MGT 6203 Spring semester. Whilst the project document and slides/ presentation list a more human-readable version, this document combines some exposition with a lot of code to generate graphs, to put it simply.
 
+
+## 0.1 Library Setup
+The document will be shared as a Shiny app and in the raw RMd format. 
+
+Please run the following chunk to ensure all the necessary libraries are installed/ present should you wish to execute the chunks at your end. (Idea taken from [this blogpost](https://vbaliga.github.io/verify-that-r-packages-are-installed-and-loaded/))
+
+```{r}
+packages<- c("dplyr", "stringr", "readr", "stargazer", "knitr", "DataExplorer", "ggplot2", "ggExtra", "psych", "PerformanceAnalytics", "corrplot", "mice", 
+             "plotly", "geojsonio")#, "rjson") #add new libraries here
+
+package.check <- lapply(
+  packages,
+  FUN = function(x)
+  {
+    if (!require(x, character.only = TRUE)) {
+      install.packages(x, dependencies = TRUE)
+      library(x, character.only = TRUE)
+    }
+  }
+)
+```
+@XY, ZZ, WL: Please include this citation in our report: 
+ Hlavac, Marek (2022). stargazer: Well-Formatted Regression and Summary Statistics Tables.
+ R package version 5.2.3. https://CRAN.R-project.org/package=stargazer 
+ 
 # 1. Loading Data
+
+We had downloaded data from [InsideAirbnb.com](http://insideairbnb.com/get-the-data) to the data folder. This will be available on our [GitHub repo](https://github.com/metamutator/crispy-octo-waffle). 
+
+The data is in four parts (each city has all five elements):
+1. ``listing``: These are the actual Airbnb listings. The columns are defined [here](https://docs.google.com/spreadsheets/d/1iWCNJcSutYqpULSQHlNyGInUvHg2BoUGoNRIGa6Szc4/edit#gid=982310896). This is set of 74 variables pertaining to a specific listing.
+2. ``review``: List of reviews per row in the ``listing`` table.
+3. ``calendar``: Price of a particular listing on a particular date, along with min-max nights for hire
+4. ``neighbourhoods``: List of neighbourhoods screened in the city
+5. ``map``: GeoJson shapefile showing district boundaries.
 
 ## 1.1 Raw
 
-```{r}
-sin_listing <- read.csv("./data/sin_listings.csv")
+We will read all the data into dataset variables. 
+```{r echo=TRUE, message=TRUE, warning=TRUE}
+#Singapore
+listing.sin <- read.csv("./data/SIN_listings.csv")
+reviews.sin <- read.csv("./data/SIN_reviews.csv")
+calendar.sin <- read.csv("./data/SIN_calendar.csv")
+neighbourhoods.sin <- read.csv("./data/SIN_neighbourhoods.csv")
+map.sin <- geojson_read("./data/SIN_neighbourhoods.geojson")
+
+#Taipei
+listing.tpe <- read.csv("./data/TPE_listings.csv")
+reviews.tpe <- read.csv("./data/TPE_reviews.csv")
+calendar.tpe <- read.csv("./data/TPE_calendar.csv")
+neighbourhoods.tpe <- read.csv("./data/TPE_neighbourhoods.csv")
+map.tpe <- geojson_read("./data/TPE_neighbourhoods.geojson")
+
+#Tokyo
+listing.nrt <- read.csv("./data/NRT_listings.csv")
+reviews.nrt <- read.csv("./data/NRT_reviews.csv")
+calendar.nrt <- read.csv("./data/NRT_calendar.csv")
+neighbourhoods.nrt <- read.csv("./data/NRT_neighbourhoods.csv")
+map.nrt <- geojson_read("./data/NRT_neighbourhoods.geojson")
+
+#Hong Kong
+listing.hkg <- read.csv("./data/HKG_listings.csv")
+reviews.hkg <- read.csv("./data/HKG_reviews.csv")
+calendar.hkg <- read.csv("./data/HKG_calendar.csv")
+neighbourhoods.hkg <- read.csv("./data/HKG_neighbourhoods.csv")
+map.hkg <- geojson_read("./data/HKG_neighbourhoods.geojson")
 ```
 
+#1.2 Initial Data Analysis
 
+```{r echo=TRUE, message=TRUE, warning=TRUE, paged.print=TRUE}
+listing_amenities.sin <- listing.sin %>%
+                      mutate(amenities = str_replace(amenities, "\\[","")) %>%
+                      mutate(amenities = str_replace(amenities, "\\]","")) %>%
+                      mutate(amenities = str_replace_all(amenities, "\"","")) %>%
+                      mutate(amenities = str_replace_all(amenities, ", " ,",")) %>%
+                      mutate(amenities_list = as.list(strsplit(amenities, ","))) %>%
+                      mutate(no_of_am = lengths(amenities_list))
+listing_amenities.sin
+max_amenities.sin <- listing_amenities.sin %>%
+                      select(amenities, no_of_am) %>%
+                      group_by() %>%
+                     slice(which.max(no_of_am))
+amenities_list_string <- as.list(strsplit(as.character(max_amenities.sin["amenities"]), ","))
+amenities_list_string
+
+#"Shampoo,Kitchen,Long term stays allowed,Washer,Smart lock,Hair dryer,Dryer,Wifi,Hot water,TV,Air conditioning,Smoke alarm,Fire extinguisher"
+```
 ## 1.2 Data Wrangling
 This is a function that wrangles AirBnb data into an analysable chunk. Because we will be doing the same for multiple cities, we will do a function out of this. The function is based on top of code shared in the lecture for Module 2.
 
 ```{r}
-library(dplyr)
-library(stringr)
-library(readr)
-library(stargazer)
-library(knitr)
 
 wrangle_airbnb_dataset <- function (raw_listing_full)
 {
@@ -70,8 +151,8 @@ head(sin_listing.clean)
 ```
 
 ```{r}
-if (!require(DataExplorer)) install.packages("DataExplorer")
-library(DataExplorer)
+# if (!require(DataExplorer)) install.packages("DataExplorer")
+# library(DataExplorer)
 
 plot_str(sin_listing, type="r")
 introduce(sin_listing)
@@ -137,11 +218,7 @@ Which is a great lesson for analysing place data from Singapore. We are a very c
 
 Let's filter rows for ``Price`` < 1000.
 ```{r}
-library(car)
-library(ggplot2)
-library(stringr)
-library("ggExtra")
-library(psych)
+
 
 sin_listing.clean <-sin_listing.clean %>%
               dplyr::filter(Price < 1000, !is.na(Price)) %>%
@@ -152,7 +229,7 @@ sin_listing.clean
 ```
 
 ```{r}
-library("PerformanceAnalytics")
+
 lm0 <- lm(Price ~ Capacity, data = sin_listing.clean)
 summary(lm0)
 stargazer(lm0, type = "text")
@@ -199,7 +276,6 @@ sin_listing.clean_cap = select(sin_listing.clean, Price, Capacity, Private_ind, 
 sin_listing.clean_cap
 chart.Correlation(sin_listing.clean_cap, histogram=TRUE, pch=19)
 
-library(corrplot)
 sin_listing.clean_corr <- cor(sin_listing.clean_cap, use = "complete.obs")
 head(round(sin_listing.clean_corr, 2))
 corrplot(sin_listing.clean_corr)
@@ -213,7 +289,6 @@ corrplot(sin_listing.clean_corr)
 
 ```
 ```{r}
-library(mice)
 
 # Remove Baths as Columns are all NA
 # Remove ln_Price, Latitude/Longitude
