@@ -15,7 +15,7 @@ The document will be shared as a Shiny app and in the raw RMd format.
 
 Please run the following chunk to ensure all the necessary libraries are installed/ present should you wish to execute the chunks at your end. (Idea taken from [this blogpost](https://vbaliga.github.io/verify-that-r-packages-are-installed-and-loaded/))
 
-```{r}
+```{r include=FALSE}
 packages<- c("dplyr", "stringr", "readr", "stargazer", "knitr", "DataExplorer", "ggplot2", "ggExtra", "psych", "PerformanceAnalytics", "corrplot", "mice", 
              "plotly", "geojsonio")#, "rjson") #add new libraries here
 
@@ -80,7 +80,105 @@ map.hkg <- geojson_read("./data/HKG_neighbourhoods.geojson")
 
 ## 1.2 Initial Data Analysis
 
-### 1.2.1 Amenities
+### 1.2.0 Number of Listings
+We first see the number of listings per city.
+```{r}
+cities  <- c("Singapore", "Tokyo", "Taipei", "Hong Kong")
+no_of_listings <- c(nrow(listing.sin), nrow(listing.nrt), nrow(listing.tpe), nrow(listing.hkg))
+no_of_listings.fig <- plot_ly(
+  x = cities,
+  y = no_of_listings,
+  type = "bar", 
+  text = no_of_listings
+)
+no_of_listings.fig <- no_of_listings.fig %>% layout(title ="No of Listings Per City", yaxis = list(title="No of Listings"))
+no_of_listings.fig
+```
+
+Clearly, Tokyo has the largest number of listings followed by Hong Kong, Taipei and then Singapore. 
+
+### 1.2.1 Listings by Neighbourhood - Choropleth Maps
+
+Let us also consider heatmaps of where the listings are in each city by neighbourhood. Admittedly, the InsideAirbnb website has a map for each city (here's one for [Taipei](http://insideairbnb.com/taipei)), but this does not show by district. At a later stage, this can be enhanced to see by variable or time-series.
+
+```{r}
+generate_choropleth_by_city <- function (listing, map, city_name)
+{
+  listings_by_neighbourhood <- listing %>%
+                                count(neighbourhood_cleansed) 
+  # neighbourhoods_zero <- neighbourhoods %>%
+  #                       filter(!neighbourhood %in% listings_by_neighbourhood$neighbourhood) %>%
+  #                       mutate(n = 0) %>%
+  #                       select(neighbourhood, n)
+  # listings_by_neighbourhood <- union(listings_by_neighbourhood, neighbourhoods_zero)
+  # print(listings_by_neighbourhood)
+  g <- list (
+    fitbounds = "locations",
+    visible = FALSE
+  )
+  fig <- plot_ly()
+  fig <- fig %>% add_trace(
+    type="choropleth",
+    geojson=map,
+    locations=listings_by_neighbourhood$neighbourhood_cleansed,
+    z=listings_by_neighbourhood$n,
+    colorscale="jet",
+    featureidkey="properties.neighbourhood"
+  )
+  
+  fig <- fig %>% layout(
+    geo = g
+  )
+  fig <- fig %>% colorbar(title = "No of listings")
+  fig <- fig %>% layout(
+    title = paste0("Listings by Neighbourhood - ", city_name)
+  )
+  fig
+}
+
+generate_choropleth_by_city(listing.sin, map.sin, "Singapore")
+generate_choropleth_by_city(listing.nrt, map.nrt, "Tokyo")
+generate_choropleth_by_city(listing.hkg, map.hkg, "Hong Kong")
+generate_choropleth_by_city(listing.tpe, map.tpe, "Taipei")
+```
+
+### 1.2.2 Listings by Neighbourhood - Bar Charts
+
+We could also see this as barcharts.
+```{r}
+bar_charts_by_neighbourhood <- function (listing, city_name, neighbourhoods)
+{
+  listings_by_neighbourhood <- listing %>%
+                                count(neighbourhood_cleansed) %>%
+                                # rename(neighbourhood = neighbourhood_cleansed)
+                                arrange(desc(n))
+  # print(listings_by_neighbourhood)
+  neighbourhoods_zero <- neighbourhoods %>%
+                        filter(!neighbourhood %in% listings_by_neighbourhood$neighbourhood_cleansed) %>%
+                        rename(neighbourhood_cleansed = neighbourhood) %>%
+                        mutate(n = 0) %>%
+                        select(neighbourhood_cleansed, n)
+  print(neighbourhoods_zero)
+  listings_by_neighbourhood <- union(listings_by_neighbourhood, neighbourhoods_zero)
+  # print(listings_by_neighbourhood)
+  fig<- plot_ly(y=listings_by_neighbourhood$neighbourhood_cleansed, x=listings_by_neighbourhood$n, type="bar", orientation="h") %>%
+        layout(yaxis=list(categoryorder = "total ascending"), title=paste("Listings per neighbourhood in", city_name))
+  fig
+}
+
+bar_charts_by_neighbourhood(listing.sin, "Singapore", neighbourhoods.sin)
+bar_charts_by_neighbourhood(listing.nrt, "Tokyo", neighbourhoods.nrt)
+bar_charts_by_neighbourhood(listing.hkg, "Hong Kong", neighbourhoods.hkg)
+bar_charts_by_neighbourhood(listing.tpe, "Taipei", neighbourhoods.tpe)
+```
+
+The majority of listings in Taipei, Tokyo and Hong Kong are in tourist-heavy districts. While the top district in Tokyo is Shinjuku, that in Hong Kong is  Yau Tsim Mong, Kowloon's core urban area formed by the combination of Yau Ma Tei, Tsim Sha Tsui and Mong Kok. Taipei's top district is Zhongzheng district ("中正區"), consisting of historic sites and cultural performances.
+
+In contrast to the other three cities, the top district in Singapore is the high-end residential condo district, Kallang. Not tourist heavy, but close to the downtown's many attractions. The tourist-heavy Geylang, Downtown Core and Outram districts appear after Kallang.
+
+Taipei and Hong Kong have listings in all districts. But 11 districts in Singapore (mostly military installations or the airport) and 16 districts in Tokyo do not have any listings. 
+
+### 1.2.3 Amenities
 
 There's a column called amenities in the dataset that appears to list all the self-reported amenities in the listing as a single comma-separated list. Let's try to see this further. 
 
@@ -92,8 +190,13 @@ listing_amenities.sin <- listing.sin %>%
                       mutate(amenities = str_replace_all(amenities, "\"","")) %>%
                       mutate(amenities = str_replace_all(amenities, ", " ,",")) %>%
                       mutate(amenities_list = as.list(strsplit(amenities, ","))) %>%
-                      mutate(no_of_am = lengths(amenities_list))
-# listing_amenities.sin
+                      mutate(no_of_am = lengths(amenities_list)) %>%
+                      mutate(Wifi = as.numeric(grepl('Wifi', amenities, fixed = TRUE))) %>%
+                      mutate(Shampoo = as.numeric(grepl('Shampoo', amenities, fixed = TRUE))) %>%
+                      mutate(Kitchen = as.numeric(grepl('Kitchen', amenities, fixed = TRUE))) 
+
+# listing_amenities.sin %>% select(amenities, Wifi, Shampoo, Kitchen, Patio)
+
 max_amenities.sin <- listing_amenities.sin %>%
                       select(amenities, no_of_am) %>%
                       group_by() %>%
@@ -105,9 +208,9 @@ amenities_list_string
 ```
 
 Apropos nothing, we will use the following amenities as dummy variables for price:
-> "Shampoo,Kitchen,Long term stays allowed,Washer,Smart lock,Hair dryer,Dryer,Wifi,Hot water,TV,Air conditioning,Smoke alarm,Fire extinguisher"
+> "Shampoo,Kitchen,Long term stays allowed,Washer,Hair dryer,Wifi,Hot water,TV,Air conditioning"
 
-### 1.2.2 Host Verifications
+### 1.2.4 Host Verifications
 
 Similarly, let us also further analyse the column `host_verifications` to see if we can generate dummy variables from there as well.
 ```{r}
@@ -129,7 +232,8 @@ host_verf_list_string
 Let's take this list to generate dummy variables.
 > ['email', 'phone', 'facebook', 'reviews', 'manual_offline', 'jumio', 'offline_government_id', 'government_id', 'work_email']
 
-Let's generalise these two bits for all cities.
+Let's generalise these two bits for all cities and create dummy variables for each one of them.
+
 ```{r}
 
 wrangle_amenities_hostvf <- function (listing)
@@ -141,11 +245,30 @@ wrangle_amenities_hostvf <- function (listing)
             mutate(amenities = str_replace_all(amenities, ", " ,",")) %>%
             mutate(amenities_list = as.list(strsplit(amenities, ","))) %>%
             mutate(no_of_am = lengths(amenities_list)) %>%
+            mutate(Amenities_Wifi = as.numeric(grepl('Wifi', amenities, fixed = TRUE))) %>%
+            mutate(Amenities_Shampoo = as.numeric(grepl('Shampoo', amenities, fixed = TRUE))) %>%
+            mutate(Amenities_Kitchen = as.numeric(grepl('Kitchen', amenities, fixed = TRUE))) %>%
+            mutate(Amenities_Long_Term = as.numeric(grepl('Long term stays', amenities, fixed = TRUE))) %>%
+            mutate(Amenities_Washer = as.numeric(grepl('Washer', amenities, fixed = TRUE))) %>%
+            mutate(Amenities_HairDryer = as.numeric(grepl('Hair dryer', amenities, fixed = TRUE))) %>%
+            mutate(Amenities_HotWater = as.numeric(grepl('Hot water', amenities, fixed = TRUE))) %>%
+            mutate(Amenities_TV = as.numeric(grepl('TV', amenities, fixed = TRUE))) %>%
+            mutate(Amenities_AC = as.numeric(grepl('Air conditioning', amenities, fixed = TRUE))) %>%
+
             mutate(host_verifications = str_replace(host_verifications, "\\[","")) %>%
             mutate(host_verifications = str_replace(host_verifications, "\\]","")) %>%
             mutate(host_verifications = str_replace_all(host_verifications, "\"","")) %>%
             mutate(host_verifications = str_replace_all(host_verifications, ", " ,",")) %>%
             mutate(host_verifications_list = as.list(strsplit(host_verifications, ","))) %>%
+            mutate(hv_email = as.numeric(grepl('email', host_verifications, fixed = TRUE))) %>%
+            mutate(hv_phone = as.numeric(grepl('phone', host_verifications, fixed = TRUE))) %>%
+            mutate(hv_facebook = as.numeric(grepl('facebook', host_verifications, fixed = TRUE))) %>%
+            mutate(hv_reviews = as.numeric(grepl('reviews', host_verifications, fixed = TRUE))) %>%
+            mutate(hv_manual_offline = as.numeric(grepl('manual_offline', host_verifications, fixed = TRUE))) %>%
+            mutate(hv_manual_jumio = as.numeric(grepl('jumio', host_verifications, fixed = TRUE))) %>%
+            mutate(hv_manual_off_gov = as.numeric(grepl('offline_government_id', host_verifications, fixed = TRUE))) %>%
+            mutate(hv_manual_gov = as.numeric(grepl('government_id', host_verifications, fixed = TRUE))) %>%
+            mutate(hv_manual_work_email = as.numeric(grepl('work_email', host_verifications, fixed = TRUE))) %>%
             mutate(no_of_vf = lengths(host_verifications_list))
 }
 
@@ -153,56 +276,18 @@ listing.sin <- wrangle_amenities_hostvf(listing.sin)
 listing.nrt <- wrangle_amenities_hostvf(listing.nrt)
 listing.tpe <- wrangle_amenities_hostvf(listing.tpe)
 listing.hkg <- wrangle_amenities_hostvf(listing.hkg)
-
-```
-### 1.2.3 Location Heatmaps
-
-Let us also consider heatmaps of where the listings are in each city by neighbourhood. Admittedly, the InsideAirbnb website has a map for each city (here's one for [Taipei](http://insideairbnb.com/taipei)), but this does not show by district. At a later stage, this can be enhanced to see by variable or time-series.
-
-```{r}
-generate_choropleth_by_city <- function (listing, map, city_name)
-{
-  listings_by_neighbourhood <- listing %>%
-                                count(neighbourhood_cleansed)
-  g <- list (
-    fitbounds = "locations",
-    visible = FALSE
-  )
-  fig <- plot_ly()
-  fig <- fig %>% add_trace(
-    type="choropleth",
-    geojson=map,
-    locations=listings_by_neighbourhood$neighbourhood_cleansed,
-    z=listings_by_neighbourhood$n,
-    colorscale="Viridis",
-    featureidkey="properties.neighbourhood"
-  )
-  
-  fig <- fig %>% layout(
-    geo = g
-  )
-  fig <- fig %>% colorbar(title = "No of listings")
-  fig <- fig %>% layout(
-    title = paste0("Listings by Neighbourhood - ", city_name)
-  )
-  fig
-}
-
-generate_choropleth_by_city(listing.sin, map.sin, "Singapore")
-generate_choropleth_by_city(listing.nrt, map.nrt, "Tokyo")
-generate_choropleth_by_city(listing.hkg, map.hkg, "Hong Kong")
-generate_choropleth_by_city(listing.tpe, map.tpe, "Taipei")
 ```
 
 ## 1.3 Data Wrangling
-This is a function that wrangles AirBnb data into an analysable chunk. Because we will be doing the same for multiple cities, we will do a function out of this. The function is based on top of code shared in the lecture for Module 2.
 
+### 1.3.1 Wrangling Listings
+This is a function that wrangles AirBnb data into an analysable chunk. Because we will be doing the same for multiple cities, we will do a function out of this. The function is based on top of code shared in the lecture for Module 2. The obvious additions are the id column, neighbourhoods and dummy variables for amenities and host verification.
 ```{r}
 
 wrangle_airbnb_dataset <- function (raw_listing_full)
 {
   listing.raw <- raw_listing_full  %>% 
-                select(price,number_of_reviews,beds,bathrooms,accommodates,reviews_per_month, property_type, room_type,review_scores_rating, neighbourhood_cleansed, neighbourhood_group_cleansed, latitude, longitude, amenities_list, host_verifications_list) %>% 
+                select(id, price,number_of_reviews,beds,bathrooms,accommodates,reviews_per_month, property_type, room_type, review_scores_rating, neighbourhood_cleansed, host_response_time, host_response_rate, host_acceptance_rate, host_is_superhost, latitude, longitude, amenities, last_review, no_of_am, Amenities_Wifi, Amenities_Shampoo, Amenities_Kitchen, Amenities_Long_Term, Amenities_Washer, Amenities_HairDryer, Amenities_HotWater, Amenities_TV,Amenities_AC, host_verifications, hv_email,hv_phone, hv_facebook, hv_reviews, hv_manual_offline, hv_manual_jumio,hv_manual_off_gov, hv_manual_gov, hv_manual_work_email, no_of_vf) %>% 
                 rename(Reviews = number_of_reviews) %>% 
                 rename(Beds = beds) %>% 
                 rename(Baths = bathrooms) %>% 
@@ -213,13 +298,28 @@ wrangle_airbnb_dataset <- function (raw_listing_full)
                 rename(Price = price) %>% 
                 rename(Rating = review_scores_rating) %>%
                 rename(Neighbourhood = neighbourhood_cleansed) %>%
-                rename(Region = neighbourhood_group_cleansed)
+                rename(host_Superhost = host_is_superhost)
 
 
   listing.raw <-  listing.raw %>% 
                 mutate(Price = str_replace(Price, "[$]", "")) %>% 
                 mutate(Price = str_replace(Price, "[,]", "")) %>% 
                 mutate(Price = as.numeric(Price)) %>% 
+                
+                mutate(host_response_rate = str_replace(host_response_rate, "[%]", "")) %>%
+                mutate(host_response_rate = as.numeric(host_response_rate)/100) %>%
+                mutate(host_acceptance_rate = str_replace(host_acceptance_rate, "[%]", "")) %>%
+                mutate(host_acceptance_rate = as.numeric(host_acceptance_rate)/100) %>%
+                mutate(host_Superhost = ifelse(host_Superhost =="f", 0, 1)) %>%
+    
+                mutate(host_response_rate = factor(host_response_rate, levels = c("within a few hours", "within a day", "a few days or more"))) %>%
+                mutate(host_response_hours = ifelse(host_response_rate == "within a few hours"),1,0) %>%
+                mutate(host_response_day = ifelse(host_response_rate == "within a day"),1,0) %>%
+                mutate(host_response_few_days = ifelse(host_response_rate == "a few days or more"),1,0) %>%
+                
+                mutate(last_review = as.Date(last_review)) %>%
+                mutate(Days_since_last_review = as.numeric(difftime(as.Date("2021-12-31"), last_review, units="days"))) %>%
+    
                 mutate(Room_Type = factor(Room_Type, levels = c("Shared room", "Private room", "Entire home/apt"))) %>% 
                 mutate(Capacity_Sqr = Capacity * Capacity) %>% 
                 mutate(Beds_Sqr = Beds * Beds) %>% 
@@ -237,39 +337,86 @@ wrangle_airbnb_dataset <- function (raw_listing_full)
                 mutate(P_Cap = Private_ind * Capacity) %>% 
                 mutate(ln_Capacity_x_Shared_ind = Shared_ind * ln_Capacity) %>% 
                 mutate(ln_Capacity_x_House_ind = House_ind * ln_Capacity) %>% 
-                mutate(ln_Capacity_x_Private_ind = Private_ind * ln_Capacity)
+                mutate(ln_Capacity_x_Private_ind = Private_ind * ln_Capacity) %>%
+                
+                filter(!is.na(Price))
 
   return(listing.raw)
 }
 
-sin_listing.clean <- wrangle_airbnb_dataset(sin_listing)
-head(sin_listing.clean)
+list.sin <- wrangle_airbnb_dataset(listing.sin)
+list.nrt <- wrangle_airbnb_dataset(listing.nrt)
+list.tpe <- wrangle_airbnb_dataset(listing.tpe)
+list.hkg <- wrangle_airbnb_dataset(listing.hkg)
 ```
+
+### 1.3.2 Wrangling Reviews.
+There's value in understanding how many reviews a property has received in the last 12 months.  We check this by wrangling the review dataset.
 
 ```{r}
-# if (!require(DataExplorer)) install.packages("DataExplorer")
-# library(DataExplorer)
+count_reviews <- function(listings, reviews, from_date, to_date)
+{
+  reviews_grouped <- reviews %>%
+                  mutate(date = as.Date(date)) %>%
+                  filter(between(date, as.Date(from_date), as.Date(to_date))) %>%
+                  group_by(listing_id) %>%
+                  summarise(reviews_since_2019 = n()) %>%
+                  mutate(bookings_since_2019 = reviews_since_2019*2) %>%
+                  rename(id = listing_id)
+  listings <- left_join(listings, reviews_grouped, by="id")
+  return(listings)
+}
+start_date = "2019-1-1"
+end_date = "2021-12-31"
+list.sin <-count_reviews(list.sin, reviews.sin,start_date, end_date)
+list.hkg <- count_reviews(list.hkg, reviews.sin,start_date, end_date)
+list.tpe <- count_reviews(list.tpe, reviews.sin,start_date, end_date)
+list.nrt <- count_reviews(list.nrt, reviews.sin,start_date, end_date)
 
-plot_str(sin_listing, type="r")
-introduce(sin_listing)
-plot_intro(sin_listing)
-plot_missing(sin_listing)
-plot_bar(sin_listing)
+list_after_2019.sin <- list.sin %>% filter(!is.na(reviews_since_2019)) 
+list_after_2019.tpe <- list.tpe %>% filter(!is.na(reviews_since_2019))
+list_after_2019.nrt <- list.nrt %>% filter(!is.na(reviews_since_2019)) 
+list_after_2019.hkg <- list.hkg %>% filter(!is.na(reviews_since_2019))
+
 ```
 
+# 2. Variable Selection: Exploratory Data Analysis
+
+We now attempt to check on variables for each city.
+
+## 2.1 Singapore
 ```{r}
-plot_str(sin_listing.clean, type="r")
-introduce(sin_listing.clean)
-plot_intro(sin_listing.clean)
-plot_missing(sin_listing.clean)
-plot_bar(sin_listing.clean)
-plot_bar(sin_listing.clean$Region)
-plot_bar(sin_listing.clean$Neighbourhood)
-pca_df <- na.omit(sin_listing.clean[, c("Price", "Room_Type", "Reviews", "Beds", "Capacity", "Monthly_Reviews")])
-plot_qq(pca_df)
-plot_prcomp(pca_df, variance_cap = 0.9, nrow = 2L, ncol=2L)
-
+data_exploration <- function (listing)
+{
+  plot_str(listing, type="r")
+  introduce(listing)
+  plot_intro(listing)
+  plot_missing(listing)
+  plot_bar(listing)
+  pca_df <- na.omit(list.sin[, c("Price", "Room_Type", "Reviews", "Beds", "Capacity", "Monthly_Reviews", "host_Superhost", "Rating","Days_since_last_review")])#, "host_response_rate", "host_response_hours", "host_acceptance_rate","host_response_day", "host_response_few_days")])
+  plot_qq(pca_df)
+  plot_prcomp(pca_df, variance_cap = 0.9, nrow = 2L, ncol=2L)
+}
+data_exploration(list.sin)
 ```
+Taipei
+```{r}
+data_exploration(list.tpe)
+```
+
+Hong Kong
+```{r}
+data_exploration(list.hkg)
+```
+
+Tokyo
+```{r}
+data_exploration(list.nrt)
+```
+
+CODE DOESNT WORK BEYOND THIS
+----------------
+
 ## 1.3 Outlier Detection
 We will now check out outliers in our data for various parameters.
 
