@@ -78,8 +78,13 @@ neighbourhoods.hkg <- read.csv("./data/HKG_neighbourhoods.csv")
 map.hkg <- geojson_read("./data/HKG_neighbourhoods.geojson")
 ```
 
-#1.2 Initial Data Analysis
+## 1.2 Initial Data Analysis
 
+### 1.2.1 Amenities
+
+There's a column called amenities in the dataset that appears to list all the self-reported amenities in the listing as a single comma-separated list. Let's try to see this further. 
+
+For instance, here's the longest list of amenities among Singapore listings.
 ```{r echo=TRUE, message=TRUE, warning=TRUE, paged.print=TRUE}
 listing_amenities.sin <- listing.sin %>%
                       mutate(amenities = str_replace(amenities, "\\[","")) %>%
@@ -88,7 +93,7 @@ listing_amenities.sin <- listing.sin %>%
                       mutate(amenities = str_replace_all(amenities, ", " ,",")) %>%
                       mutate(amenities_list = as.list(strsplit(amenities, ","))) %>%
                       mutate(no_of_am = lengths(amenities_list))
-listing_amenities.sin
+# listing_amenities.sin
 max_amenities.sin <- listing_amenities.sin %>%
                       select(amenities, no_of_am) %>%
                       group_by() %>%
@@ -98,7 +103,98 @@ amenities_list_string
 
 #"Shampoo,Kitchen,Long term stays allowed,Washer,Smart lock,Hair dryer,Dryer,Wifi,Hot water,TV,Air conditioning,Smoke alarm,Fire extinguisher"
 ```
-## 1.2 Data Wrangling
+
+Apropos nothing, we will use the following amenities as dummy variables for price:
+> "Shampoo,Kitchen,Long term stays allowed,Washer,Smart lock,Hair dryer,Dryer,Wifi,Hot water,TV,Air conditioning,Smoke alarm,Fire extinguisher"
+
+### 1.2.2 Host Verifications
+
+Similarly, let us also further analyse the column `host_verifications` to see if we can generate dummy variables from there as well.
+```{r}
+listing_host_verf.sin <- listing.sin %>%
+                      mutate(host_verifications = str_replace(host_verifications, "\\[","")) %>%
+                      mutate(host_verifications = str_replace(host_verifications, "\\]","")) %>%
+                      mutate(host_verifications = str_replace_all(host_verifications, "\"","")) %>%
+                      mutate(host_verifications = str_replace_all(host_verifications, ", " ,",")) %>%
+                      mutate(host_verifications_list = as.list(strsplit(host_verifications, ","))) %>%
+                      mutate(no_of_vf = lengths(host_verifications_list))
+
+max_verf.sin <- listing_host_verf.sin %>%
+                      select(host_verifications, no_of_vf) %>%
+                      group_by() %>%
+                     slice(which.max(no_of_vf))
+host_verf_list_string <- as.list(strsplit(as.character(max_verf.sin["host_verifications"]), ","))
+host_verf_list_string
+```
+Let's take this list to generate dummy variables.
+> ['email', 'phone', 'facebook', 'reviews', 'manual_offline', 'jumio', 'offline_government_id', 'government_id', 'work_email']
+
+Let's generalise these two bits for all cities.
+```{r}
+
+wrangle_amenities_hostvf <- function (listing)
+{
+  listing <- listing %>%
+            mutate(amenities = str_replace(amenities, "\\[","")) %>%
+            mutate(amenities = str_replace(amenities, "\\]","")) %>%
+            mutate(amenities = str_replace_all(amenities, "\"","")) %>%
+            mutate(amenities = str_replace_all(amenities, ", " ,",")) %>%
+            mutate(amenities_list = as.list(strsplit(amenities, ","))) %>%
+            mutate(no_of_am = lengths(amenities_list)) %>%
+            mutate(host_verifications = str_replace(host_verifications, "\\[","")) %>%
+            mutate(host_verifications = str_replace(host_verifications, "\\]","")) %>%
+            mutate(host_verifications = str_replace_all(host_verifications, "\"","")) %>%
+            mutate(host_verifications = str_replace_all(host_verifications, ", " ,",")) %>%
+            mutate(host_verifications_list = as.list(strsplit(host_verifications, ","))) %>%
+            mutate(no_of_vf = lengths(host_verifications_list))
+}
+
+listing.sin <- wrangle_amenities_hostvf(listing.sin)
+listing.nrt <- wrangle_amenities_hostvf(listing.nrt)
+listing.tpe <- wrangle_amenities_hostvf(listing.tpe)
+listing.hkg <- wrangle_amenities_hostvf(listing.hkg)
+
+```
+### 1.2.3 Location Heatmaps
+
+Let us also consider heatmaps of where the listings are in each city by neighbourhood. Admittedly, the InsideAirbnb website has a map for each city (here's one for [Taipei](http://insideairbnb.com/taipei)), but this does not show by district. At a later stage, this can be enhanced to see by variable or time-series.
+
+```{r}
+generate_choropleth_by_city <- function (listing, map, city_name)
+{
+  listings_by_neighbourhood <- listing %>%
+                                count(neighbourhood_cleansed)
+  g <- list (
+    fitbounds = "locations",
+    visible = FALSE
+  )
+  fig <- plot_ly()
+  fig <- fig %>% add_trace(
+    type="choropleth",
+    geojson=map,
+    locations=listings_by_neighbourhood$neighbourhood_cleansed,
+    z=listings_by_neighbourhood$n,
+    colorscale="Viridis",
+    featureidkey="properties.neighbourhood"
+  )
+  
+  fig <- fig %>% layout(
+    geo = g
+  )
+  fig <- fig %>% colorbar(title = "No of listings")
+  fig <- fig %>% layout(
+    title = paste0("Listings by Neighbourhood - ", city_name)
+  )
+  fig
+}
+
+generate_choropleth_by_city(listing.sin, map.sin, "Singapore")
+generate_choropleth_by_city(listing.nrt, map.nrt, "Tokyo")
+generate_choropleth_by_city(listing.hkg, map.hkg, "Hong Kong")
+generate_choropleth_by_city(listing.tpe, map.tpe, "Taipei")
+```
+
+## 1.3 Data Wrangling
 This is a function that wrangles AirBnb data into an analysable chunk. Because we will be doing the same for multiple cities, we will do a function out of this. The function is based on top of code shared in the lecture for Module 2.
 
 ```{r}
@@ -106,7 +202,7 @@ This is a function that wrangles AirBnb data into an analysable chunk. Because w
 wrangle_airbnb_dataset <- function (raw_listing_full)
 {
   listing.raw <- raw_listing_full  %>% 
-                select(price,number_of_reviews,beds,bathrooms,accommodates,reviews_per_month, property_type, room_type,review_scores_rating, neighbourhood_cleansed, neighbourhood_group_cleansed, latitude, longitude) %>% 
+                select(price,number_of_reviews,beds,bathrooms,accommodates,reviews_per_month, property_type, room_type,review_scores_rating, neighbourhood_cleansed, neighbourhood_group_cleansed, latitude, longitude, amenities_list, host_verifications_list) %>% 
                 rename(Reviews = number_of_reviews) %>% 
                 rename(Beds = beds) %>% 
                 rename(Baths = bathrooms) %>% 
