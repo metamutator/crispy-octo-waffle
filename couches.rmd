@@ -1,7 +1,7 @@
 ---
 title: "Coasting on Couches"
-output: pdf_document #html_document
-# runtime: shiny
+output: html_document
+runtime: shiny
 author: Akshay *Regulagedda*, Kevin *Tan*, Wan Ling *Loh*, Zach *Zhang*, Xin Ying *Goh*
 editor_options: 
   chunk_output_type: inline
@@ -282,7 +282,7 @@ listing.hkg <- wrangle_amenities_hostvf(listing.hkg)
 
 ### 1.3.1 Wrangling Listings
 This is a function that wrangles AirBnb data into an analysable chunk. Because we will be doing the same for multiple cities, we will do a function out of this. The function is based on top of code shared in the lecture for Module 2. The obvious additions are the id column, neighbourhoods and dummy variables for amenities and host verification.
-```{r}
+```{r echo=TRUE, warning=FALSE}
 
 wrangle_airbnb_dataset <- function (raw_listing_full)
 {
@@ -441,11 +441,11 @@ generate_price_boxplot(list_after_2019.sin, "Singapore", "Reviews") #, sin_listi
 
 Seems like a single boat in Bukit Merah area (possibly next to the marina at Keppel Bay) has a very high price, at $2500/ night. Let's look that one up more closely.
 
-```{r}
-list_after_2019.sin %>% arrange(desc(Price))
-list_after_2019.sin %>% arrange(desc(reviews_since_2019))
-list_after_2019.sin %>% filter(Property_Type == "Boat") %>% arrange (desc(reviews_since_2019))
-list_after_2019.sin %>% group_by(id, Property_Type, bookings_since_2019) %>% summarise(percent_of_total = bookings_since_2019*100/sum(list_after_2019.sin$bookings_since_2019)) %>% filter(Property_Type == "Boat") %>% arrange (desc(bookings_since_2019))
+```{r echo=TRUE, warning=FALSE, paged.print=TRUE}
+head(list_after_2019.sin %>% arrange(desc(Price)))
+head(list_after_2019.sin %>% arrange(desc(reviews_since_2019)))
+head(list_after_2019.sin %>% filter(Property_Type == "Boat") %>% arrange (desc(reviews_since_2019)))
+head(list_after_2019.sin %>% group_by(id, Property_Type, bookings_since_2019) %>% summarise(percent_of_total = bookings_since_2019*100/sum(list_after_2019.sin$bookings_since_2019)) %>% filter(Property_Type == "Boat") %>% arrange (desc(bookings_since_2019)))
 ```
 
 There are four boats listed on Airbnb Singapore. Together, they form roughly 2% of all bookings since 2019.
