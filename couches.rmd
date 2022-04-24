@@ -414,12 +414,9 @@ Tokyo
 data_exploration(list.nrt)
 ```
 
-CODE DOESNT WORK BEYOND THIS
-----------------
+## 2.2 Boxplots
 
-## 1.3 Outlier Detection
-We will now check out outliers in our data for various parameters.
-
+We will now check out outliers in our data for various parameters, filtering for listings that have seen at least one booking since 1 Jan 2019, starting with Singapore data.
 ```{r}
 generate_price_boxplot <- function (listing.clean, city, comparison_col = "")
 {
@@ -433,105 +430,84 @@ generate_price_boxplot <- function (listing.clean, city, comparison_col = "")
   # dev.off()
 }
 
-generate_price_boxplot(sin_listing.clean, "Singapore") #, sin_listing.clean$)
-generate_price_boxplot(sin_listing.clean, "Singapore", "Room_Type") #, sin_listing.clean$)
-generate_price_boxplot(sin_listing.clean, "Singapore", "Property_Type") #, sin_listing.clean$)
-generate_price_boxplot(sin_listing.clean, "Singapore", "Capacity") #, sin_listing.clean$)
-generate_price_boxplot(sin_listing.clean, "Singapore", "Beds") #, sin_listing.clean$)
-generate_price_boxplot(sin_listing.clean, "Singapore", "Region") #, sin_listing.clean$)
-generate_price_boxplot(sin_listing.clean, "Singapore", "Neighbourhood") #, sin_listing.clean$)
+generate_price_boxplot(list_after_2019.sin, "Singapore") #, sin_listing.clean$)
+generate_price_boxplot(list_after_2019.sin, "Singapore", "Room_Type") #, sin_listing.clean$)
+generate_price_boxplot(list_after_2019.sin, "Singapore", "Property_Type") #, sin_listing.clean$)
+generate_price_boxplot(list_after_2019.sin, "Singapore", "Capacity") #, sin_listing.clean$)
+generate_price_boxplot(list_after_2019.sin, "Singapore", "Beds") #, sin_listing.clean$)
+generate_price_boxplot(list_after_2019.sin, "Singapore", "Neighbourhood") #, sin_listing.clean$)
+generate_price_boxplot(list_after_2019.sin, "Singapore", "Reviews") #, sin_listing.clean$)
 ```
-That was a visual analysis of outliers. Clearly, there are a few offerings that are very highly priced. Let's look at them in a bit more depth, especially those units with rental prices above $5000. 
+
+Seems like a single boat in Bukit Merah area (possibly next to the marina at Keppel Bay) has a very high price, at $2500/ night. Let's look that one up more closely.
 
 ```{r}
-filter(sin_listing.clean, Price > 5000)
+list_after_2019.sin %>% arrange(desc(Price))
+list_after_2019.sin %>% arrange(desc(reviews_since_2019))
+list_after_2019.sin %>% filter(Property_Type == "Boat") %>% arrange (desc(reviews_since_2019))
+list_after_2019.sin %>% group_by(id, Property_Type, bookings_since_2019) %>% summarise(percent_of_total = bookings_since_2019*100/sum(list_after_2019.sin$bookings_since_2019)) %>% filter(Property_Type == "Boat") %>% arrange (desc(bookings_since_2019))
 ```
 
-The listing for Southern Islands was curious enough for us to want to look it up on a map. 
+There are four boats listed on Airbnb Singapore. Together, they form roughly 2% of all bookings since 2019.
 
-![Southern Islands](./images/jurassicpark.png)
-
-The given coordinates point to a location in Universal Studios Singapore, specifically the Jurassic Park Rapids Adventure ride. Now the price to USS is indeed expensive, and the Jurassic Park Rapids Adventure ride is a family favourite, but whether it is worth spending $8,900 to spend a night there may indeed be debatable. 
-
-Realistically however, we suspect this is a listing from somewhere further south at Sentosa Cove, an exclusive community designed for high net-worth individuals. 
-
-![Sentosa Cove](./images/sentosacove.png)
-
-Which is a great lesson for analysing place data from Singapore. We are a very compact country, and a few decimal points' worth of difference in lat-long coordinates can indeed be the difference between a much loved amusement part ride or a high-end dwelling.
-
-Let's filter rows for ``Price`` < 1000.
+## 2.3 Correlation Matrices
 ```{r}
-
-
-sin_listing.clean <-sin_listing.clean %>%
-              dplyr::filter(Price < 1000, !is.na(Price)) %>%
-                dplyr::filter(Capacity < 9) %>%
-                mutate(ln_Reviews = log(1+Reviews)) %>%
-                mutate(ln_Monthly_Reviews = log(1+Monthly_Reviews))
-sin_listing.clean
-```
-
-```{r}
-
-lm0 <- lm(Price ~ Capacity, data = sin_listing.clean)
-summary(lm0)
-stargazer(lm0, type = "text")
-
-ggplot(data = sin_listing.clean, aes(x = Capacity, y = Price)) + geom_point(aes(size=3)) +
-scale_colour_hue(l=50) + # Use a slightly darker palette than normal
-geom_smooth(method=lm,   # Add linear regression lines
-           se=TRUE,    #  add shaded confidence region
-           fullrange=TRUE) +
-theme(axis.text.x = element_text(size=15), axis.text.y = element_text(size=15), 
-        axis.title=element_text(size=15,face="bold"))
-# vif(lm0)
+list_of_vars = c("reviews_since_2019", "Rating", "Reviews", "Beds", "Capacity", "Monthly_Reviews","host_acceptance_rate", 
+                 "host_Superhost", "no_of_am","Amenities_Wifi","Amenities_Shampoo","Amenities_Kitchen","Amenities_Long_Term","Amenities_Washer",
+                 "Amenities_HairDryer", "Amenities_HotWater", "Amenities_TV", "Amenities_AC", "hv_email", "hv_phone",  "hv_facebook", "hv_reviews",
+                 "hv_manual_offline", "hv_manual_jumio", "hv_manual_off_gov", "hv_manual_gov", "hv_manual_work_email", "no_of_vf", "Days_since_last_review",
+                 "Shared_ind", "House_ind", "Private_ind", "reviews_since_2019","bookings_since_2019")
+list_after_2019.sin %>% select_(.dots = c(list_of_vars), "Price")
 ```
 ```{r}
+corr_list.sin = list_after_2019.sin %>% select_(.dots = c(list_of_vars,"Price"))
+chart.Correlation(corr_list.sin, histogram=TRUE, pch=19)
 
-# The moderating effect of type of room. Lets model that.
-
-lm1 <- lm(Price ~ Private_ind + House_ind, data = sin_listing.clean)
-summary(lm1)
-stargazer(lm1, type = "text")
+clean_corr.sin <- cor(corr_list.sin, use = "complete.obs")
+head(round(clean_corr.sin, 2))
+corrplot(clean_corr.sin)
 ```
+
+
+# This doesn't work
 ```{r}
-#Regression with Capacity and Dummy Variables for type of room:
 
-lm2 <- lm(Price ~ Capacity + Private_ind + House_ind, data = sin_listing.clean)
-summary(lm2)
-stargazer(lm2, type = "text")
+# lm0 <- lm(Price ~ Capacity, data = sin_listing.clean)
+# summary(lm0)
+# stargazer(lm0, type = "text")
+#
+# ggplot(data = sin_listing.clean, aes(x = Capacity, y = Price)) + geom_point(aes(size=3)) +
+# scale_colour_hue(l=50) + # Use a slightly darker palette than normal
+# geom_smooth(method=lm,   # Add linear regression lines
+#            se=TRUE,    #  add shaded confidence region
+#            fullrange=TRUE) +
+# theme(axis.text.x = element_text(size=15), axis.text.y = element_text(size=15),
+#         axis.title=element_text(size=15,face="bold"))
+# # vif(lm0)
+# ```
+# ```{r}
+#
+# # The moderating effect of type of room. Lets model that.
+#
+# lm1 <- lm(Price ~ Private_ind + House_ind, data = sin_listing.clean)
+# summary(lm1)
+# stargazer(lm1, type = "text")
+# ```
+# ```{r}
+# #Regression with Capacity and Dummy Variables for type of room:
+#
+# lm2 <- lm(Price ~ Capacity + Private_ind + House_ind, data = sin_listing.clean)
+# summary(lm2)
+# stargazer(lm2, type = "text")
 ```
 
-### 
 ```{r}
 #Regression with Capacity,Dummy Variables and interaction between the two:
-lm3 <- lm(Price ~ Capacity+Private_ind + House_ind+P_Cap+H_Cap, data = sin_listing.clean)
-summary(lm3)
-stargazer(lm3,type = "text")
+# lm3 <- lm(Price ~ Capacity+Private_ind + House_ind+P_Cap+H_Cap, data = sin_listing.clean)
+# summary(lm3)
+# stargazer(lm3,type = "text")
 
 ```
-
-### 2.4 Correlation Matrix
-Let's find a correlation matrix for the various variables.
-
-```{r}
-sin_listing.clean_cap = select(sin_listing.clean, Price, Capacity, Private_ind, House_ind, P_Cap, H_Cap)
-sin_listing.clean_cap
-chart.Correlation(sin_listing.clean_cap, histogram=TRUE, pch=19)
-
-sin_listing.clean_corr <- cor(sin_listing.clean_cap, use = "complete.obs")
-head(round(sin_listing.clean_corr, 2))
-corrplot(sin_listing.clean_corr)
-```
-```{r}
-# la_listing <- la_listing %>%
-#               dplyr::filter(Price < 5000 , !is.na(Beds), !is.na(Baths), !is.na(Price), !is.na(Rating)) %>%
-#                 dplyr::filter(Capacity < 9) %>%
-#                 mutate(ln_Reviews = log(1+Reviews)) %>%
-#                 mutate(ln_Monthly_Reviews = log(1+Monthly_Reviews))
-
-```
-
 
 # Define function to clean 
 Comments from Kevin: 
