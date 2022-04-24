@@ -362,6 +362,9 @@ The approach taken in [this paper](https://towardsdatascience.com/airbnb-pricing
 We check this by wrangling the review dataset.
 
 ```{r}
+list.sin
+```
+```{r}
 count_reviews <- function(listings, reviews, from_date, to_date)
 {
   reviews_grouped <- reviews %>%
@@ -383,9 +386,23 @@ list.nrt <- count_reviews(list.nrt, reviews.nrt,start_date, end_date)
 
 list_after_2019.sin <- list.sin %>% filter(!is.na(reviews_since_2019)) 
 list_after_2019.tpe <- list.tpe %>% filter(!is.na(reviews_since_2019))
-list_after_2019.nrt <- list.nrt %>% filter(!is.na(reviews_since_2019)) 
+list_after_2019.nrt <- list.nrt %>% filter(!is.na(reviews_since_2019))
 list_after_2019.hkg <- list.hkg %>% filter(!is.na(reviews_since_2019))
+```
 
+```{r}
+add_earnings <- function(listing)
+{
+  return (listing %>% mutate(earnings_since_2019 = bookings_since_2019 * 3 * Price))
+}
+list_after_2019.sin <- add_earnings(list_after_2019.sin) 
+list_after_2019.tpe <- add_earnings(list_after_2019.tpe) 
+list_after_2019.nrt <- add_earnings(list_after_2019.nrt) 
+list_after_2019.hkg <- add_earnings(list_after_2019.hkg) 
+```
+```{r}
+median_earnings.sin <- list_after_2019.sin %>% summarise(median(earnings_since_2019))
+median_earnings.sin
 ```
 
 This reduces the number of listings, and hopefully, quite a few outliers. 
@@ -506,7 +523,7 @@ vars_list.sin = list_after_2019.sin %>% select_(.dots = c(list_of_vars,"Price", 
 
 # 3 Modelling
 
-## 3.1 Principal Components Regression 
+## 3.1 Principal Components Regression - Predicting Price
 Principal Components Regression could find M linear combinations ("principal components") of our predictors (`list_of_vars`) and then use least squares to fit a linear regression model.
 
 ```{r}
@@ -514,11 +531,7 @@ set.seed(1)
 
 pcr_model <- function (listings, city)
 {
-  pcr_model <- pcr( data=listings, scale=TRUE, validation="CV", Price ~ reviews_since_2019 + Rating + host_acceptance_rate +host_Superhost + reviews_since_2019 + Shared_ind + House_ind + Private_ind + Amenities_Wifi + hv_email) #", 
-                   # "host_Superhost", "no_of_am","Amenities_Wifi","Amenities_Shampoo","Amenities_Kitchen","Amenities_Long_Term","Amenities_Washer",
-                   # "Amenities_HairDryer", "Amenities_HotWater", "Amenities_TV", "Amenities_AC", "hv_email",  "hv_facebook", "hv_reviews",
-                   # "hv_manual_offline", "hv_manual_jumio", "hv_manual_off_gov", "hv_manual_gov", "hv_manual_work_email", "no_of_vf", "Days_since_last_review",
-                   # , "reviews_since_2019","bookings_since_2019")
+  pcr_model <- pcr( data=listings, scale=TRUE, validation="CV", Price ~ reviews_since_2019 + Rating + host_acceptance_rate +host_Superhost + reviews_since_2019 + Shared_ind + House_ind + Private_ind + Amenities_Wifi + hv_email) 
   
   summary(pcr_model)
   plot(pcr_model)
@@ -534,6 +547,31 @@ pcr_model.nrt <-pcr_model(list_after_2019.nrt, "Tokyo")
 ```
 
 The mean absolute error for each city is about $108.
+
+## 3.2 Predicting Earnings
+```{r}
+set.seed(1)
+
+pcr_model_earnings <- function (listings, city)
+{
+  pcr_model <- pcr( data=listings, scale=TRUE, validation="CV", earnings_since_2019 ~ Price + reviews_since_2019 + Rating + host_acceptance_rate +host_Superhost + reviews_since_2019 + Shared_ind + House_ind + Private_ind + Amenities_Wifi + hv_email) #", 
+                   # "host_Superhost", "no_of_am","Amenities_Wifi","Amenities_Shampoo","Amenities_Kitchen","Amenities_Long_Term","Amenities_Washer",
+                   # "Amenities_HairDryer", "Amenities_HotWater", "Amenities_TV", "Amenities_AC", "hv_email",  "hv_facebook", "hv_reviews",
+                   # "hv_manual_offline", "hv_manual_jumio", "hv_manual_off_gov", "hv_manual_gov", "hv_manual_work_email", "no_of_vf", "Days_since_last_review",
+                   # , "reviews_since_2019","bookings_since_2019")
+  
+  summary(pcr_model)
+  plot(pcr_model)
+  validationplot(pcr_model, val.type="MSEP")
+  validationplot(pcr_model, val.type="R2")
+  print(paste("MAE for", city,":", mae(listings$earnings_since_2019, predict(pcr_model))))
+  return (pcr_model)
+}
+pcr_model.sin <-pcr_model_earnings(list_after_2019.sin, "Singapore")
+pcr_model.hkg <-pcr_model_earnings(list_after_2019.hkg, "Hong Kong")
+pcr_model.tpe <-pcr_model_earnings(list_after_2019.tpe, "Taipei")
+pcr_model.nrt <-pcr_model_earnings(list_after_2019.nrt, "Tokyo")
+```
 
 # This doesn't work
 ```{r}
