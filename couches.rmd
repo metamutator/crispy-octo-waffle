@@ -667,7 +667,7 @@ pcr_model.nrt <-pcr_model_earnings(list_after_2019.nrt, "Tokyo")
 # Define function to clean 
 Comments from Kevin: I have created 2 way of cleaning
 
-- clean_subset_including --> To select the variables we want (I used this for Lasso since built-in stepwise regression function automatically creates dummy variables)
+- clean_subset_including --> To select the variables we want (I used this for stepwise since built-in stepwise regression function automatically creates dummy variables)
 
 - clean_subset_including --> To select the variables we don't want (I used this for Lasso since there is a lot of dummy variables and I rather exclude those not needed)
 ```{r}
