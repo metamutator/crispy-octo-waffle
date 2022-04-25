@@ -451,7 +451,6 @@ list_after_2019.nrt_remove <- dummy_cols(list_after_2019.nrt, select_columns = c
 list_after_2019.tpe_remove <- dummy_cols(list_after_2019.tpe, select_columns = c("Property_Type","Room_Type"), remove_selected_columns = TRUE)
 list_after_2019.hkg_remove <- dummy_cols(list_after_2019.hkg, select_columns = c("Property_Type","Room_Type"), remove_selected_columns = TRUE)
 
-
 # list_after_2019.sin
 # list_after_2019.nrt
 # list_after_2019.hkg
