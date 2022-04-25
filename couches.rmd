@@ -436,7 +436,7 @@ list_after_2019.sin <- left_join(list_after_2019.sin, district_bins.sin %>% sele
 list_after_2019.nrt <- left_join(list_after_2019.nrt, district_bins.nrt %>% select(neighbourhood_cleansed, nb_group), by="neighbourhood_cleansed")
 list_after_2019.hkg <- left_join(list_after_2019.hkg, district_bins.hkg %>% select(neighbourhood_cleansed, nb_group), by="neighbourhood_cleansed")
 list_after_2019.tpe <- left_join(list_after_2019.tpe, district_bins.tpe %>% select(neighbourhood_cleansed, nb_group), by="neighbourhood_cleansed")
-list_after_2019.sin
+# list_after_2019.sin
 ```
 
 ```{r paged.print=TRUE}
@@ -445,10 +445,10 @@ list_after_2019.nrt <- dummy_cols(list_after_2019.nrt, select_columns = "nb_grou
 list_after_2019.tpe <- dummy_cols(list_after_2019.tpe, select_columns = "nb_group", remove_selected_columns = TRUE)
 list_after_2019.hkg <- dummy_cols(list_after_2019.hkg, select_columns = "nb_group", remove_selected_columns = TRUE)
 
-list_after_2019.sin
-list_after_2019.nrt
-list_after_2019.hkg
-list_after_2019.tpe
+# list_after_2019.sin
+# list_after_2019.nrt
+# list_after_2019.hkg
+# list_after_2019.tpe
 ```
 This reduces the number of listings, and hopefully, quite a few outliers. 
 ```{r}
@@ -552,7 +552,7 @@ vars_list.tpe = list_after_2019.tpe %>% select_(.dots = c(list_of_vars,"Price"))
 vars_list.hkg = list_after_2019.hkg %>% select_(.dots = c(list_of_vars,"Price")) %>% na.omit()
 vars_list.nrt = list_after_2019.nrt %>% select_(.dots = c(list_of_vars,"Price")) %>% na.omit()
 
-vars_list.sin
+# vars_list.sin
 ```
 ```{r}
 paint_corrleations <- function(listing)
