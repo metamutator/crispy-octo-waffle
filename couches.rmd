@@ -2,7 +2,7 @@
 title: "Coasting on Couches"
 output: html_document
 # runtime: shiny
-author: Akshay *Regulagedda*, Kevin *Tan*, Wan Ling *Loh*, Zach *Zhang*, Xin Ying *Goh*
+author: Akshay R, Kevin *Tan*, Wan Ling *Loh*, Zach *Zhang*, Xin Ying *Goh*
 editor_options: 
   chunk_output_type: inline
 ---
@@ -31,10 +31,6 @@ package.check <- lapply(
 ```
 
 Please execute `install.packages("pls")` in the console if it's the first time you're running it. There could be some additional installations, depending on your operating system.
-
-@XY, ZZ, WL: Please include this citation in our report: 
- Hlavac, Marek (2022). stargazer: Well-Formatted Regression and Summary Statistics Tables.
- R package version 5.2.3. https://CRAN.R-project.org/package=stargazer 
  
 # 1. Loading Data
 
@@ -137,13 +133,25 @@ generate_choropleth_by_city <- function (listing, map, city_name)
   )
   fig
 }
-
 generate_choropleth_by_city(listing.sin, map.sin, "Singapore")
 generate_choropleth_by_city(listing.nrt, map.nrt, "Tokyo")
 generate_choropleth_by_city(listing.hkg, map.hkg, "Hong Kong")
 generate_choropleth_by_city(listing.tpe, map.tpe, "Taipei")
 ```
 
+```{r}
+bin_districts <- function(listing, bins)
+{
+  district_bins <- listing %>%
+                    count(neighbourhood_cleansed) %>%
+                    arrange(desc(n))%>%
+                    mutate(nb_group = ntile(n,n=bins)) %>%
+                    arrange(desc(nb_group))
+  return(district_bins)
+}
+
+bin_districts(listing.sin, 4)
+```
 ### 1.2.2 Listings by Neighbourhood - Bar Charts
 
 We could also see this as barcharts.
@@ -299,7 +307,7 @@ wrangle_airbnb_dataset <- function (raw_listing_full)
                 rename(Room_Type = room_type) %>% 
                 rename(Price = price) %>% 
                 rename(Rating = review_scores_rating) %>%
-                rename(Neighbourhood = neighbourhood_cleansed) %>%
+                # rename(Neighbourhood = neighbourhood_cleansed) %>%
                 rename(host_Superhost = host_is_superhost)
 
 
@@ -308,7 +316,7 @@ wrangle_airbnb_dataset <- function (raw_listing_full)
                 mutate(Price = str_replace(Price, "[,]", "")) %>% 
                 mutate(Price = as.numeric(Price)) %>% 
                 
-                mutate(hood_factor = as.factor(Neighbourhood)) %>%
+                # mutate(hood_factor = as.factor(Neighbourhood)) %>%
                 
                 mutate(host_response_rate = str_replace(host_response_rate, "[%]", "")) %>%
                 mutate(host_response_rate = as.numeric(host_response_rate)/100) %>%
@@ -362,9 +370,6 @@ The approach taken in [this paper](https://towardsdatascience.com/airbnb-pricing
 We check this by wrangling the review dataset.
 
 ```{r}
-list.sin
-```
-```{r}
 count_reviews <- function(listings, reviews, from_date, to_date)
 {
   reviews_grouped <- reviews %>%
@@ -390,6 +395,19 @@ list_after_2019.nrt <- list.nrt %>% filter(!is.na(reviews_since_2019))
 list_after_2019.hkg <- list.hkg %>% filter(!is.na(reviews_since_2019))
 ```
 
+Let's try to look listings after 2019 in map form.
+```{r}
+generate_choropleth_by_city(list_after_2019.sin, map.sin, "Singapore")
+generate_choropleth_by_city(list_after_2019.nrt, map.nrt, "Tokyo")
+generate_choropleth_by_city(list_after_2019.hkg, map.hkg, "Hong Kong")
+generate_choropleth_by_city(list_after_2019.tpe, map.tpe, "Taipei")
+
+bar_charts_by_neighbourhood(list_after_2019.sin, "Singapore", neighbourhoods.sin)
+bar_charts_by_neighbourhood(list_after_2019.nrt, "Tokyo", neighbourhoods.nrt)
+bar_charts_by_neighbourhood(list_after_2019.hkg, "Hong Kong", neighbourhoods.hkg)
+bar_charts_by_neighbourhood(list_after_2019.tpe, "Taipei", neighbourhoods.tpe)
+```
+
 ```{r}
 add_earnings <- function(listing)
 {
@@ -400,11 +418,38 @@ list_after_2019.tpe <- add_earnings(list_after_2019.tpe)
 list_after_2019.nrt <- add_earnings(list_after_2019.nrt) 
 list_after_2019.hkg <- add_earnings(list_after_2019.hkg) 
 ```
+
+Let's group listings into groups of neighbourhoods: extremely popular, popular, moderate, not so popular, and sparse.
 ```{r}
-median_earnings.sin <- list_after_2019.sin %>% summarise(median(earnings_since_2019))
-median_earnings.sin
+district_bins.sin <- bin_districts(list_after_2019.sin, bins=5)
+district_bins.sin
+district_bins.nrt <- bin_districts(list_after_2019.nrt, bins=5)
+district_bins.nrt
+district_bins.hkg <- bin_districts(list_after_2019.hkg, bins=5)
+district_bins.hkg
+district_bins.tpe <- bin_districts(list_after_2019.tpe, bins=5)
+district_bins.tpe
 ```
 
+```{r}
+list_after_2019.sin <- left_join(list_after_2019.sin, district_bins.sin %>% select(neighbourhood_cleansed, nb_group), by="neighbourhood_cleansed")
+list_after_2019.nrt <- left_join(list_after_2019.nrt, district_bins.nrt %>% select(neighbourhood_cleansed, nb_group), by="neighbourhood_cleansed")
+list_after_2019.hkg <- left_join(list_after_2019.hkg, district_bins.hkg %>% select(neighbourhood_cleansed, nb_group), by="neighbourhood_cleansed")
+list_after_2019.tpe <- left_join(list_after_2019.tpe, district_bins.tpe %>% select(neighbourhood_cleansed, nb_group), by="neighbourhood_cleansed")
+list_after_2019.sin
+```
+
+```{r paged.print=TRUE}
+list_after_2019.sin <- dummy_cols(list_after_2019.sin, select_columns = "nb_group", remove_selected_columns = TRUE)
+list_after_2019.nrt <- dummy_cols(list_after_2019.nrt, select_columns = "nb_group", remove_selected_columns = TRUE)
+list_after_2019.tpe <- dummy_cols(list_after_2019.tpe, select_columns = "nb_group", remove_selected_columns = TRUE)
+list_after_2019.hkg <- dummy_cols(list_after_2019.hkg, select_columns = "nb_group", remove_selected_columns = TRUE)
+
+list_after_2019.sin
+list_after_2019.nrt
+list_after_2019.hkg
+list_after_2019.tpe
+```
 This reduces the number of listings, and hopefully, quite a few outliers. 
 ```{r}
 
@@ -480,15 +525,15 @@ generate_price_boxplot(list_after_2019.sin, "Singapore", "Room_Type") #, sin_lis
 generate_price_boxplot(list_after_2019.sin, "Singapore", "Property_Type") #, sin_listing.clean$)
 generate_price_boxplot(list_after_2019.sin, "Singapore", "Capacity") #, sin_listing.clean$)
 generate_price_boxplot(list_after_2019.sin, "Singapore", "Beds") #, sin_listing.clean$)
-generate_price_boxplot(list_after_2019.sin, "Singapore", "Neighbourhood") #, sin_listing.clean$)
+generate_price_boxplot(list_after_2019.sin, "Singapore", "neighbourhood_cleansed") #, sin_listing.clean$)
 generate_price_boxplot(list_after_2019.sin, "Singapore", "Reviews") #, sin_listing.clean$)
 ```
 
 Seems like a single boat in Bukit Merah area (possibly next to the marina at Keppel Bay) has a very high price, at $2500/ night. Let's look that one up more closely.
 
 ```{r echo=TRUE, warning=FALSE, paged.print=TRUE}
-head(list_after_2019.sin %>% arrange(desc(Price)))
-head(list_after_2019.sin %>% arrange(desc(reviews_since_2019)))
+# head(list_after_2019.sin %>% arrange(desc(Price)))
+# head(list_after_2019.sin %>% arrange(desc(reviews_since_2019)))
 head(list_after_2019.sin %>% filter(Property_Type == "Boat") %>% arrange (desc(reviews_since_2019)))
 head(list_after_2019.sin %>% group_by(id, Property_Type, bookings_since_2019) %>% summarise(percent_of_total = bookings_since_2019*100/sum(list_after_2019.sin$bookings_since_2019)) %>% filter(Property_Type == "Boat") %>% arrange (desc(bookings_since_2019)))
 ```
@@ -497,12 +542,8 @@ There are four boats listed on Airbnb Singapore. Together, they form roughly 2% 
 
 ## 2.3 Correlation Matrices
 ```{r warning=FALSE, paged.print=TRUE}
-list_of_vars = c("reviews_since_2019", "Rating", "Reviews", "Beds", "Capacity", "Monthly_Reviews","host_acceptance_rate", 
-                 "host_Superhost", "no_of_am","Amenities_Wifi","Amenities_Shampoo","Amenities_Kitchen","Amenities_Long_Term","Amenities_Washer",
-                 "Amenities_HairDryer", "Amenities_HotWater", "Amenities_TV", "Amenities_AC", "hv_email",  "hv_facebook", "hv_reviews",
-                 "hv_manual_offline", "hv_manual_jumio", "hv_manual_off_gov", "hv_manual_gov", "hv_manual_work_email", "no_of_vf", "Days_since_last_review",
-                 "Shared_ind", "House_ind", "Private_ind", "reviews_since_2019","bookings_since_2019") #, "hood_factor")
-list_after_2019.sin %>% select_(.dots = c(list_of_vars), "Price")
+list_of_vars = c("earnings_since_2019","Rating", "Reviews", "Beds", "Capacity", "host_acceptance_rate", "host_Superhost","Amenities_Wifi","Amenities_Shampoo","Amenities_Kitchen","Amenities_Long_Term","Amenities_Washer","Amenities_HairDryer", "Amenities_HotWater", "Amenities_TV", "Amenities_AC", "hv_email",  "hv_reviews", "Shared_ind", "House_ind", "Private_ind")#, "reviews_since_2019","bookings_since_2019") #, "hood_factor")
+# list_after_2019.sin %>% select_(.dots = c(list_of_vars), "Price")
 ```
 
 ```{r}
@@ -511,14 +552,18 @@ vars_list.tpe = list_after_2019.tpe %>% select_(.dots = c(list_of_vars,"Price"))
 vars_list.hkg = list_after_2019.hkg %>% select_(.dots = c(list_of_vars,"Price")) %>% na.omit()
 vars_list.nrt = list_after_2019.nrt %>% select_(.dots = c(list_of_vars,"Price")) %>% na.omit()
 
-
-chart.Correlation(vars_list.sin, histogram=TRUE, pch=19)
-
-clean_corr.sin <- cor(vars_list.sin, use = "complete.obs")
-head(round(clean_corr.sin, 2))
-corrplot(clean_corr.sin)
-
-vars_list.sin = list_after_2019.sin %>% select_(.dots = c(list_of_vars,"Price", "hood_factor")) %>% na.omit()
+vars_list.sin
+```
+```{r}
+paint_corrleations <- function(listing)
+{
+  # chart.Correlation(listing, histogram=TRUE, pch=19)
+  corrplot::corrplot(cor(listing, use = "complete.obs"), method="square", type="lower")
+}
+paint_corrleations(vars_list.sin)
+paint_corrleations(vars_list.nrt)
+paint_corrleations(vars_list.tpe)
+paint_corrleations(vars_list.hkg)
 ```
 
 # 3 Modelling
@@ -625,12 +670,12 @@ Comments from Kevin:
 clean_subset <- function(list_after_2019.country) {
   
 ### Arbitrary selection of a list of variables 
-  selecting_columns <- list_after_2019.sin[,c("Price","Reviews","Beds","Capacity","Monthly_Reviews","Property_Type","Room_Type","Rating","Neighbourhood","host_response_time","host_acceptance_rate","host_Superhost","no_of_am","Amenities_Wifi","Amenities_Shampoo","Amenities_Kitchen","Amenities_Long_Term","Amenities_Washer","Amenities_HairDryer","Amenities_HotWater","Amenities_TV","Amenities_AC","hv_email","hv_phone","hv_facebook","hv_reviews","hv_manual_offline","hv_manual_jumio","hv_manual_off_gov","hv_manual_gov","hv_manual_work_email","no_of_vf","Days_since_last_review","Capacity_Sqr","Beds_Sqr","ln_Price","ln_Beds","ln_Capacity","ln_Rating","Shared_ind","House_ind","Private_ind","Capacity_x_Shared_ind","H_Cap","P_Cap","ln_Capacity_x_Shared_ind","ln_Capacity_x_House_ind","ln_Capacity_x_Private_ind","reviews_since_2019","bookings_since_2019" )]
+  selecting_columns <- list_after_2019.sin[,c("Price","Reviews","Beds","Capacity","Monthly_Reviews","Property_Type","Room_Type","Rating","neighbourhood_cleansed","host_response_time","host_acceptance_rate","host_Superhost","no_of_am","Amenities_Wifi","Amenities_Shampoo","Amenities_Kitchen","Amenities_Long_Term","Amenities_Washer","Amenities_HairDryer","Amenities_HotWater","Amenities_TV","Amenities_AC","hv_email","hv_phone","hv_facebook","hv_reviews","hv_manual_offline","hv_manual_jumio","hv_manual_off_gov","hv_manual_gov","hv_manual_work_email","no_of_vf","Days_since_last_review","Capacity_Sqr","Beds_Sqr","ln_Price","ln_Beds","ln_Capacity","ln_Rating","Shared_ind","House_ind","Private_ind","Capacity_x_Shared_ind","H_Cap","P_Cap","ln_Capacity_x_Shared_ind","ln_Capacity_x_House_ind","ln_Capacity_x_Private_ind","reviews_since_2019","bookings_since_2019", "earnings_since_2019" )]
 
 ### Removing rows with blanks instead of imputing
 selecting_columns <- na.omit(selecting_columns)
 selecting_columns$Property_Type <- as.factor(selecting_columns$Property_Type)
-selecting_columns$Neighbourhood  <- as.factor(selecting_columns$Neighbourhood )
+selecting_columns$neighbourhood_cleansed  <- as.factor(selecting_columns$neighbourhood_cleansed )
 selecting_columns$host_response_time <- as.factor(selecting_columns$host_response_time)
 
   return(selecting_columns)
