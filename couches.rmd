@@ -713,19 +713,6 @@ list_after_2019.hkg_clean <- clean_subset_excluding(list_after_2019.hkg_remove)
 list_after_2019.nrt_clean <- clean_subset_excluding(list_after_2019.nrt_remove)
 list_after_2019.tpe_clean <- clean_subset_excluding(list_after_2019.tpe_remove)
 
-###############################################################################################################
-
-# For Stepwise Regression Input
-list_after_2019.sin_step <- clean_subset_including(list_after_2019.sin)
-list_after_2019.hkg_step <- clean_subset_including(list_after_2019.hkg)
-list_after_2019.nrt_step <- clean_subset_including(list_after_2019.nrt)
-list_after_2019.tpe_step <- clean_subset_including(list_after_2019.tpe)
-
-# For Lasso Regression Input
-list_after_2019.sin_clean <- clean_subset_excluding(list_after_2019.sin_remove)
-list_after_2019.hkg_clean <- clean_subset_excluding(list_after_2019.hkg_remove)
-list_after_2019.nrt_clean <- clean_subset_excluding(list_after_2019.nrt_remove)
-list_after_2019.tpe_clean <- clean_subset_excluding(list_after_2019.tpe_remove)
 ```
 
 
