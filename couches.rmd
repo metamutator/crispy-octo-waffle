@@ -677,7 +677,7 @@ Comments from Kevin: I have created 2 way of cleaning
 clean_subset_including <- function(list_after_2019.country) {
   
 ### Arbitrary selection of a list of variables 
-  selecting_columns <- list_after_2019.country[,c("Reviews","Beds","Capacity","Monthly_Reviews","Property_Type","Room_Type","Rating","neighbourhood_cleansed","host_response_time","host_acceptance_rate","host_Superhost","no_of_am","Amenities_Wifi","Amenities_Shampoo","Amenities_Kitchen","Amenities_Long_Term","Amenities_Washer","Amenities_HairDryer","Amenities_HotWater","Amenities_TV","Amenities_AC","hv_email","hv_phone","hv_facebook","hv_reviews","hv_manual_offline","hv_manual_jumio","hv_manual_off_gov","hv_manual_gov","hv_manual_work_email","no_of_vf","Days_since_last_review","Capacity_Sqr","Beds_Sqr","ln_Beds","ln_Capacity","ln_Rating","Shared_ind","House_ind","Private_ind","Capacity_x_Shared_ind","H_Cap","P_Cap","ln_Capacity_x_Shared_ind","ln_Capacity_x_House_ind","ln_Capacity_x_Private_ind","reviews_since_2019","bookings_since_2019", "earnings_since_2019","nb_group_1","nb_group_2","nb_group_3","nb_group_4","nb_group_5" )]
+  selecting_columns <- list_after_2019.country[,c("Price","Reviews","Beds","Capacity","Monthly_Reviews","Property_Type","Room_Type","Rating","neighbourhood_cleansed","host_response_time","host_acceptance_rate","host_Superhost","no_of_am","Amenities_Wifi","Amenities_Shampoo","Amenities_Kitchen","Amenities_Long_Term","Amenities_Washer","Amenities_HairDryer","Amenities_HotWater","Amenities_TV","Amenities_AC","hv_email","hv_phone","hv_facebook","hv_reviews","hv_manual_offline","hv_manual_jumio","hv_manual_off_gov","hv_manual_gov","hv_manual_work_email","no_of_vf","Days_since_last_review","Capacity_Sqr","Beds_Sqr","ln_Beds","ln_Capacity","ln_Rating","Shared_ind","House_ind","Private_ind","Capacity_x_Shared_ind","H_Cap","P_Cap","ln_Capacity_x_Shared_ind","ln_Capacity_x_House_ind","ln_Capacity_x_Private_ind","reviews_since_2019","bookings_since_2019", "earnings_since_2019" )]
 
 ### Removing rows with blanks instead of imputing
 selecting_columns <- na.omit(selecting_columns)
@@ -692,7 +692,7 @@ selecting_columns$host_response_time <- as.factor(selecting_columns$host_respons
 
 clean_subset_excluding <- function(list_after_2019.country) {
   
-selecting_columns <- list_after_2019.country[,!names(list_after_2019.country) %in%  c('id','Price','ln_Price','host_response_time','host_response_rate','host_verifications','Baths','Baths_Sqr','ln_Baths','latitude','longitude','neighbourhood_cleansed','amenities','last_review','1','0','host_response_hours','host_response_day','host_response_few_days')]
+selecting_columns <- list_after_2019.country[,!names(list_after_2019.country) %in%  c('id','ln_Price','host_response_time','host_response_rate','host_verifications','Baths','Baths_Sqr','ln_Baths','latitude','longitude','neighbourhood_cleansed','amenities','last_review','1','0','host_response_hours','host_response_day','host_response_few_days')]
 
 selecting_columns <- na.omit(selecting_columns)
   return(selecting_columns)
@@ -713,6 +713,7 @@ list_after_2019.nrt_clean <- clean_subset_excluding(list_after_2019.nrt_remove)
 list_after_2019.tpe_clean <- clean_subset_excluding(list_after_2019.tpe_remove)
 ```
 
+
 # Feature Selection - Backward Stepwise Regression
 Comments from Kevin: Can help to double check if the R-squared value looks too high at 0.80 for a real-world dataset?
 
@@ -720,8 +721,8 @@ Comments from Kevin: Can help to double check if the R-squared value looks too h
 stepwise_regression_model <- function(list_after_2019.country_step) {
   
   #Define Smallest and Full Model 
-  minmod = lm(earnings_since_2019~1, data = list_after_2019.country_step)
-  fullmod = lm(earnings_since_2019~. , data = list_after_2019.country_step)
+  minmod = lm(Price~1, data = list_after_2019.country_step)
+  fullmod = lm(Price~. , data = list_after_2019.country_step)
   
   # Using BIC: k=log(nobs(fullmod), Using AIC: k=2
   backward_regression_model <- step(fullmod, scope = list(lower = minmod, upper = fullmod),direction = "backward", k=log(nobs(fullmod)), trace=F)
@@ -735,36 +736,19 @@ summary(stepwise_regression_model(list_after_2019.nrt_step))
 summary(stepwise_regression_model(list_after_2019.tpe_step))
 
 
+# Putting forward stepwise regression in comments in case we need to use 
+# forward_regression = step(minmod, scope = list(lower = minmod, upper = fullmod),direction = "forward", k=log(nobs(fullmod)), trace=F)
+# summary(forward_regression)
 
 ```
-# Backward Stepwise Regression using Leaps Package
-
-```{r}
-library(leaps)
-backwardstep_leaps_sin <- regsubsets(earnings_since_2019~., data = list_after_2019.sin_step, nvmax = 5,method = "backward")
-backwardstep_leaps_hkg <- regsubsets(earnings_since_2019~., data = list_after_2019.hkg_step, nvmax = 5,method = "backward")
-backwardstep_leaps_nrt <- regsubsets(earnings_since_2019~., data = list_after_2019.nrt_step, nvmax = 5,method = "backward")
-backwardstep_leaps_tpe <- regsubsets(earnings_since_2019~., data = list_after_2019.tpe_step, nvmax = 5,method = "backward")
-
-summary(backwardstep_leaps_sin)$which
-summary(backwardstep_leaps_hkg)$which
-summary(backwardstep_leaps_nrt)$which
-summary(backwardstep_leaps_tpe)$which
-```
-
 # Lasso Regreesion
 ```{r}
 set.seed(100)
 library(glmnet)
-
-lasso_cv_sin= cv.glmnet(as.matrix(list_after_2019.sin_clean[,!names(list_after_2019.sin_clean) %in% c("earnings_since_2019")]),list_after_2019.sin_clean[,c("earnings_since_2019")],family="gaussian",alpha=1, nfolds=10)
-
-lasso_cv_hkg= cv.glmnet(as.matrix(list_after_2019.hkg_clean[,!names(list_after_2019.hkg_clean) %in% c("earnings_since_2019")]),list_after_2019.hkg_clean[,c("earnings_since_2019")],family="gaussian",alpha=1, nfolds=10)
-
-lasso_cv_nrt= cv.glmnet(as.matrix(list_after_2019.nrt_clean[,!names(list_after_2019.nrt_clean) %in% c("earnings_since_2019")]),list_after_2019.nrt_clean[,c("earnings_since_2019")],family="gaussian",alpha=1, nfolds=10)
-
-lasso_cv_tpe= cv.glmnet(as.matrix(list_after_2019.tpe_clean[,!names(list_after_2019.tpe_clean) %in% c("earnings_since_2019")]),list_after_2019.tpe_clean[,c("earnings_since_2019")],family="gaussian",alpha=1, nfolds=10)
-
+lasso_cv_sin= cv.glmnet(as.matrix(list_after_2019.sin_clean[,-46]),list_after_2019.sin_clean[,46],family="gaussian",alpha=1, nfolds=10)
+lasso_cv_hkg= cv.glmnet(as.matrix(list_after_2019.hkg_clean[,-46]),list_after_2019.hkg_clean[,46],family="gaussian",alpha=1, nfolds=10)
+lasso_cv_nrt= cv.glmnet(as.matrix(list_after_2019.nrt_clean[,-46]),list_after_2019.nrt_clean[,46],family="gaussian",alpha=1, nfolds=10)
+lasso_cv_tpe= cv.glmnet(as.matrix(list_after_2019.tpe_clean[,-46]),list_after_2019.tpe_clean[,46],family="gaussian",alpha=1, nfolds=10)
 
 coef(lasso_cv_sin,s=lasso_cv_sin$lambda.min)
 coef(lasso_cv_hkg,s=lasso_cv_hkg$lambda.min)
