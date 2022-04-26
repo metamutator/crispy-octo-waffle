@@ -713,6 +713,7 @@ list_after_2019.nrt_clean <- clean_subset_excluding(list_after_2019.nrt_remove)
 list_after_2019.tpe_clean <- clean_subset_excluding(list_after_2019.tpe_remove)
 ```
 
+
 # Feature Selection - Backward Stepwise Regression
 Comments from Kevin: Can help to double check if the R-squared value looks too high at 0.80 for a real-world dataset?
 
@@ -744,10 +745,10 @@ summary(stepwise_regression_model(list_after_2019.tpe_step))
 ```{r}
 set.seed(100)
 library(glmnet)
-lasso_cv_sin= cv.glmnet(as.matrix(list_after_2019.sin_clean[,-1]),list_after_2019.sin_clean[,1],family="gaussian",alpha=1, nfolds=10)
-lasso_cv_hkg= cv.glmnet(as.matrix(list_after_2019.hkg_clean[,-1]),list_after_2019.hkg_clean[,1],family="gaussian",alpha=1, nfolds=10)
-lasso_cv_nrt= cv.glmnet(as.matrix(list_after_2019.nrt_clean[,-1]),list_after_2019.nrt_clean[,1],family="gaussian",alpha=1, nfolds=10)
-lasso_cv_tpe= cv.glmnet(as.matrix(list_after_2019.tpe_clean[,-1]),list_after_2019.tpe_clean[,1],family="gaussian",alpha=1, nfolds=10)
+lasso_cv_sin= cv.glmnet(as.matrix(list_after_2019.sin_clean[,-46]),list_after_2019.sin_clean[,46],family="gaussian",alpha=1, nfolds=10)
+lasso_cv_hkg= cv.glmnet(as.matrix(list_after_2019.hkg_clean[,-46]),list_after_2019.hkg_clean[,46],family="gaussian",alpha=1, nfolds=10)
+lasso_cv_nrt= cv.glmnet(as.matrix(list_after_2019.nrt_clean[,-46]),list_after_2019.nrt_clean[,46],family="gaussian",alpha=1, nfolds=10)
+lasso_cv_tpe= cv.glmnet(as.matrix(list_after_2019.tpe_clean[,-46]),list_after_2019.tpe_clean[,46],family="gaussian",alpha=1, nfolds=10)
 
 coef(lasso_cv_sin,s=lasso_cv_sin$lambda.min)
 coef(lasso_cv_hkg,s=lasso_cv_hkg$lambda.min)
