@@ -16,7 +16,7 @@ The document will be shared as a Shiny app and in the raw RMd format.
 Please run the following chunk to ensure all the necessary libraries are installed/ present should you wish to execute the chunks at your end. (Idea taken from [this blogpost](https://vbaliga.github.io/verify-that-r-packages-are-installed-and-loaded/))
 
 ```{r include=FALSE}
-packages<- c("dplyr", "stringr", "readr", "stargazer", "knitr", "DataExplorer", "ggplot2", "car","ggExtra", "psych", "PerformanceAnalytics", "corrplot", "mice", "plotly", "geojsonio", "rjson", "geojsonR", "pls", "fastDummies", "Metrics") #add new libraries here
+packages<- c("dplyr", "stringr", "readr", "stargazer", "knitr", "DataExplorer", "ggplot2", "car","ggExtra", "psych", "PerformanceAnalytics", "corrplot", "mice", "plotly", "geojsonio", "rjson", "geojsonR", "pls", "fastDummies", "Metrics", "leaps", "glmnet", "glmnetUtils") #add new libraries here
 
 package.check <- lapply(
   packages,
@@ -746,7 +746,7 @@ summary(stepwise_regression_model(list_after_2019.tpe_step))
 # Backward Stepwise Regression using Leaps Package
 ```{r}
 
-library(leaps)
+# library(leaps)
 backwardstep_leaps_sin <- regsubsets(earnings_since_2019~., data = list_after_2019.sin_step, nvmax = 5,method = "backward")
 backwardstep_leaps_hkg <- regsubsets(earnings_since_2019~., data = list_after_2019.hkg_step, nvmax = 5,method = "backward")
 backwardstep_leaps_nrt <- regsubsets(earnings_since_2019~., data = list_after_2019.nrt_step, nvmax = 5,method = "backward")
@@ -762,7 +762,7 @@ summary(backwardstep_leaps_tpe)$which
 # Lasso Regreesion
 ```{r}
 set.seed(100)
-library(glmnet)
+# library(glmnet)
 
 lasso_cv_sin= cv.glmnet(as.matrix(list_after_2019.sin_clean[,!names(list_after_2019.sin_clean) %in% c("earnings_since_2019")]),list_after_2019.sin_clean[,c("earnings_since_2019")],family="gaussian",alpha=1, nfolds=10)
 
@@ -777,40 +777,72 @@ lasso_cv_tpe= cv.glmnet(as.matrix(list_after_2019.tpe_clean[,!names(list_after_2
 #lasso_cv_nrt= cv.glmnet(as.matrix(list_after_2019.nrt_clean[,-46]),list_after_2019.nrt_clean[,46],family="gaussian",alpha=1, nfolds=10)
 #lasso_cv_tpe= cv.glmnet(as.matrix(list_after_2019.tpe_clean[,-46]),list_after_2019.tpe_clean[,46],family="gaussian",alpha=1, nfolds=10)
 
-coef(lasso_cv_sin,s=lasso_cv_sin$lambda.min)
-coef(lasso_cv_hkg,s=lasso_cv_hkg$lambda.min)
-coef(lasso_cv_nrt,s=lasso_cv_nrt$lambda.min)
-coef(lasso_cv_tpe,s=lasso_cv_tpe$lambda.min)
+lasso_coef.sin <- coef(lasso_cv_sin,s=lasso_cv_sin$lambda.min)
+lasso_coef.hkg <- coef(lasso_cv_hkg,s=lasso_cv_hkg$lambda.min)
+lasso_coef.nrt <- coef(lasso_cv_nrt,s=lasso_cv_nrt$lambda.min)
+lasso_coef.tpe <- coef(lasso_cv_tpe,s=lasso_cv_tpe$lambda.min)
+```
 
+```{r}
+returnDf <- function (model, input_coef) 
+{
+  feature_names <- all.vars(model$terms)
+  sze = length(input_coef)
+  lasso_coef_df <- data.frame(features = input_coef@Dimnames[[1]][1:sze], coefs = round(input_coef[1:sze],2)) %>% filter (coefs != 0 )
+  # lasso_coef_df <- lasso_coef_df %>% rename(paste("coefs", city, sep = "_") = )
+  return (lasso_coef_df)
+}
+lasso_coef_df.sin <- returnDf(lasso_cv_sin, lasso_coef.sin) %>% rename (sin_coefs = coefs)
+lasso_coef_df.hkg <- returnDf(lasso_cv_hkg, lasso_coef.hkg) %>% rename (hkg_coefs = coefs)
+lasso_coef_df.nrt <- returnDf(lasso_cv_nrt, lasso_coef.nrt) %>% rename (nrt_coefs = coefs)
+lasso_coef_df.tpe <- returnDf(lasso_cv_tpe, lasso_coef.tpe) %>% rename (tpe_coefs = coefs)
+
+lasso_coef_df <- full_join(lasso_coef_df.nrt, lasso_coef_df.tpe, on="features")
+lasso_coef_df <- full_join(lasso_coef_df, lasso_coef_df.sin, on="features")
+lasso_coef_df <- full_join(lasso_coef_df, lasso_coef_df.hkg, on="features")
+# lasso_coef_df_normalised <- lasso_coef_df %>%
+lasso_coef_df
+```
+
+```{r}
+plot(lasso_cv_sin)
+plot(lasso_cv_hkg)
+plot(lasso_cv_nrt)
+plot(lasso_cv_tpe)
+
+```
+```{r}
+lasso_coef_df.sin <- as.data.frame(summary(coef(lasso_cv_sin)))
+lasso_coef_df.sin
 ```
 # Training the Model
 
 ```{r}
-set.seed(123)
-# Splitting the data into 80:20
-train_idx <- sample(1:nrow(list_after_2019.sin_clean), 0.8*nrow(list_after_2019.sin_clean)) 
-training_sin <- list_after_2019.sin_clean[train_idx,]
-testing_sin <- list_after_2019.sin_clean[-train_idx,]
-
-final_model_sin <- lm(formula = Price ~ ln_Price + Property_Type + ln_Capacity_x_Private_ind + 
-    Capacity + Amenities_Wifi + Amenities_Shampoo + Amenities_AC + 
-    no_of_am + Amenities_Kitchen + hv_email, data = training_sin)
-summary(final_model_sin)
+# set.seed(123)
+# # Splitting the data into 80:20
+# train_idx <- sample(1:nrow(list_after_2019.sin_clean), 0.8*nrow(list_after_2019.sin_clean)) 
+# training_sin <- list_after_2019.sin_clean[train_idx,]
+# testing_sin <- list_after_2019.sin_clean[-train_idx,]
+# 
+# final_model_sin <- lm(formula = Price ~ ln_Price + Property_Type + ln_Capacity_x_Private_ind + 
+#     Capacity + Amenities_Wifi + Amenities_Shampoo + Amenities_AC + 
+#     no_of_am + Amenities_Kitchen + hv_email, data = training_sin)
+# summary(final_model_sin)
 
 ```
 # Checking Predictive Power and Mean absolute prediction error (MAE)
-Comments from Kevin: Calculated the MAE value, but this number is probably more useful if its a comparison between models.
+Comments from Kevin: Calculated the MAE value, but this number is probably more useful if its a comparison between mo dels.
 
 ```{r}
-predict_sin <- predict(final_model_sin,newdata=testing_sin)
-MAE_sin <- mean(abs(predict_sin - testing_sin$Price))
+# predict_sin <- predict(final_model_sin,newdata=testing_sin)
+# MAE_sin <- mean(abs(predict_sin - testing_sin$Price))
 ```
 
 # Checking for Assumptions on Outliers and Multicollinearity
 Comments from Kevin: There seems to be out-lying points and issue of multicollinearity - we could either try to resolve or in the interest of time, just state that this is subsequently something we could look into 
 
 ```{r}
-cook=cooks.distance(final_model_sin)
-plot(cook,type='h',lwd=3,ylab="Cook's Distance")
-vif(final_model_sin)
+# cook=cooks.distance(final_model_sin)
+# plot(cook,type='h',lwd=3,ylab="Cook's Distance")
+# vif(final_model_sin)
 ```
