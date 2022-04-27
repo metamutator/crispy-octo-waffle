@@ -789,7 +789,6 @@ returnDf <- function (model, input_coef)
   feature_names <- all.vars(model$terms)
   sze = length(input_coef)
   lasso_coef_df <- data.frame(features = input_coef@Dimnames[[1]][1:sze], coefs = round(input_coef[1:sze],2)) %>% filter (coefs != 0 )
-  # lasso_coef_df <- lasso_coef_df %>% rename(paste("coefs", city, sep = "_") = )
   return (lasso_coef_df)
 }
 lasso_coef_df.sin <- returnDf(lasso_cv_sin, lasso_coef.sin) %>% rename (sin_coefs = coefs)
@@ -800,8 +799,60 @@ lasso_coef_df.tpe <- returnDf(lasso_cv_tpe, lasso_coef.tpe) %>% rename (tpe_coef
 lasso_coef_df <- full_join(lasso_coef_df.nrt, lasso_coef_df.tpe, on="features")
 lasso_coef_df <- full_join(lasso_coef_df, lasso_coef_df.sin, on="features")
 lasso_coef_df <- full_join(lasso_coef_df, lasso_coef_df.hkg, on="features")
-# lasso_coef_df_normalised <- lasso_coef_df %>%
-lasso_coef_df
+
+lasso_coef_normalised.sin <- returnDf(lasso_cv_sin, lasso_coef.sin) %>% mutate_each_(list(~scale(.) %>% as.vector), vars = "coefs")
+lasso_coef_normalised.hkg <- returnDf(lasso_cv_hkg, lasso_coef.hkg) %>% mutate_each_(list(~scale(.) %>% as.vector), vars = "coefs")
+lasso_coef_normalised.nrt <- returnDf(lasso_cv_tpe, lasso_coef.tpe) %>% mutate_each_(list(~scale(.) %>% as.vector), vars = "coefs")
+lasso_coef_normalised.tpe <- returnDf(lasso_cv_nrt, lasso_coef.nrt) %>% mutate_each_(list(~scale(.) %>% as.vector), vars = "coefs")
+```
+
+```{r echo=TRUE}
+returnTopBtmCoefs <- function (lasso_coef_normalised, topn)
+{
+  return (lasso_coef_normalised %>% arrange(desc(coefs)) %>% top_n(topn) %>% mutate(coefs = round(coefs,2)))
+}
+
+paintGraphCoefs <- function(lasso_coef_top5, topn, city)
+{
+  top5_listings.fig <- plot_ly(
+    x = lasso_coef_top5$features,
+    y = lasso_coef_top5$coefs,
+    type = "bar",
+    text = lasso_coef_top5$coefs
+  )
+  top5_listings.fig <- top5_listings.fig %>% layout(title =paste("Top", topn," Features for", city), yaxis = list(title="Feature Weight (relative)"))
+  top5_listings.fig
+}
+
+lasso_coef_top5.sin <- returnTopBtmCoefs(lasso_coef_normalised.sin, 10)
+paintGraphCoefs(lasso_coef_top5.sin, 10, "Singapore")
+lasso_coef_top5.nrt <- returnTopBtmCoefs(lasso_coef_normalised.nrt, 10)
+paintGraphCoefs(lasso_coef_top5.nrt, 10, "Tokyo")
+lasso_coef_top5.tpe <- returnTopBtmCoefs(lasso_coef_normalised.tpe, 10)
+paintGraphCoefs(lasso_coef_top5.tpe, 10, "Taipei")
+lasso_coef_top5.hkg <- returnTopBtmCoefs(lasso_coef_normalised.hkg, 10)
+paintGraphCoefs(lasso_coef_top5.hkg, 10, "Hong Kong")
+
+lasso_coef_btm5.sin <- returnTopBtmCoefs(lasso_coef_normalised.sin, -10)
+paintGraphCoefs(lasso_coef_btm5.sin, -10, "Singapore")
+lasso_coef_btm5.nrt <- returnTopBtmCoefs(lasso_coef_normalised.nrt, -10)
+paintGraphCoefs(lasso_coef_btm5.sin, -10, "Tokyo")
+lasso_coef_btm5.tpe <- returnTopBtmCoefs(lasso_coef_normalised.tpe, -10)
+paintGraphCoefs(lasso_coef_btm5.tpe, -10, "Taipei")
+lasso_coef_btm5.hkg <- returnTopBtmCoefs(lasso_coef_normalised.hkg, -10)
+paintGraphCoefs(lasso_coef_btm5.hkg, -10, "Hong Kong")
+```
+
+```{r}
+lasso_coef_top5.sin
+lasso_coef_top5.nrt
+lasso_coef_top5.tpe
+lasso_coef_top5.hkg
+
+lasso_coef_btm5.sin
+lasso_coef_btm5.nrt
+lasso_coef_btm5.tpe
+lasso_coef_btm5.hkg
 ```
 
 ```{r}
@@ -809,12 +860,8 @@ plot(lasso_cv_sin)
 plot(lasso_cv_hkg)
 plot(lasso_cv_nrt)
 plot(lasso_cv_tpe)
+```
 
-```
-```{r}
-lasso_coef_df.sin <- as.data.frame(summary(coef(lasso_cv_sin)))
-lasso_coef_df.sin
-```
 # Training the Model
 
 ```{r}
