@@ -1,7 +1,6 @@
 ---
 title: "Coasting on Couches"
 output: html_document
-# runtime: shiny
 author: Akshay R, Kevin *Tan*, Wan Ling *Loh*, Zach *Zhang*, Xin Ying *Goh*
 editor_options: 
   chunk_output_type: inline
@@ -9,9 +8,16 @@ editor_options:
 # 0. Introduction
 This document lists the exploratory data analysis, model build and analysis for *Coasting on Couches*, the term project for MGT 6203 Spring semester. Whilst the project document and slides/ presentation list a more human-readable version, this document combines some exposition with a lot of code to generate graphs, to put it simply.
 
+The code and data is available on a [GitHub repo](https://github.com/metamutator/crispy-octo-waffle).
 
-## 0.1 Library Setup
-The document will be shared as a Shiny app and in the raw RMd format. 
+## 0.1 Potential Gotchas
+1. Please download the data from the GitHub repo.
+2. You may have trouble installing the following packages via the chunk below. If you do, please manually install them:
+    1. pls
+    2. geojsonio
+3. Whilst the `geojson_read` method works in most installations (and had been extensively tested on mac OS Monterey ), it has thrown up errors in some Windows installations. We were made aware of this only yesterday, and unfortunately do not have a resolution at the moment, mainly because this does not happen on our primary platform, mac OS Monterey. We could potentially issue a fix via our GitHub repo should there be a resolution in the future. The attached HTML document shows the generated choropleth maps.
+
+## 0.2 Library Setup
 
 Please run the following chunk to ensure all the necessary libraries are installed/ present should you wish to execute the chunks at your end. (Idea taken from [this blogpost](https://vbaliga.github.io/verify-that-r-packages-are-installed-and-loaded/))
 
@@ -43,6 +49,7 @@ The data is in four parts (each city has all five elements):
 4. ``neighbourhoods``: List of neighbourhoods screened in the city
 5. ``map``: GeoJson shapefile showing district boundaries.
 
+The data may be accessed [here](https://github.com/metamutator/crispy-octo-waffle/tree/main/data) or [here](https://1drv.ms/u/s!AtqfMArftC16i_kU6n8H2Gic1KUVWA?e=xlkCnV)
 ## 1.1 Raw
 
 We will read all the data into dataset variables. 
@@ -120,7 +127,7 @@ generate_choropleth_by_city <- function (listing, map, city_name)
     geojson=map,
     locations=listings_by_neighbourhood$neighbourhood_cleansed,
     z=listings_by_neighbourhood$n,
-    colorscale="jet",
+    colorscale="Viridis",
     featureidkey="properties.neighbourhood"
   )
   
@@ -480,7 +487,8 @@ This roughly halves the number of listings being considered in Hong Kong and Sin
 
 We now attempt to check on variables for each city.
 
-## 2.1 Singapore
+## 2.1 Data Exploration
+### 2.1.1 Singapore
 ```{r}
 data_exploration <- function (listing)
 {
@@ -495,17 +503,17 @@ data_exploration <- function (listing)
 }
 data_exploration(list.sin)
 ```
-Taipei
+### 2.1.2 Taipei
 ```{r}
 data_exploration(list.tpe)
 ```
 
-Hong Kong
+### 2.1.3 Hong Kong
 ```{r}
 data_exploration(list.hkg)
 ```
 
-Tokyo
+### 2.1.4 Tokyo
 ```{r}
 data_exploration(list.nrt)
 ```
@@ -600,6 +608,8 @@ pcr_model.nrt <-pcr_model(list_after_2019.nrt, "Tokyo")
 The mean absolute error for each city is about $108.
 
 ## 3.2 Predicting Earnings
+Price is a constant in the dataset and is in fact recommended by Airbnb itself. Instead, it makes more sense to model for earnings than price, as earnings is also dependent on number of bookings for a given price. 
+
 ```{r}
 set.seed(1)
 
@@ -624,52 +634,13 @@ pcr_model.tpe <-pcr_model_earnings(list_after_2019.tpe, "Taipei")
 pcr_model.nrt <-pcr_model_earnings(list_after_2019.nrt, "Tokyo")
 ```
 
-# This doesn't work
-```{r}
 
-# lm0 <- lm(Price ~ Capacity, data = sin_listing.clean)
-# summary(lm0)
-# stargazer(lm0, type = "text")
-#
-# ggplot(data = sin_listing.clean, aes(x = Capacity, y = Price)) + geom_point(aes(size=3)) +
-# scale_colour_hue(l=50) + # Use a slightly darker palette than normal
-# geom_smooth(method=lm,   # Add linear regression lines
-#            se=TRUE,    #  add shaded confidence region
-#            fullrange=TRUE) +
-# theme(axis.text.x = element_text(size=15), axis.text.y = element_text(size=15),
-#         axis.title=element_text(size=15,face="bold"))
-# # vif(lm0)
-# ```
-# ```{r}
-#
-# # The moderating effect of type of room. Lets model that.
-#
-# lm1 <- lm(Price ~ Private_ind + House_ind, data = sin_listing.clean)
-# summary(lm1)
-# stargazer(lm1, type = "text")
-# ```
-# ```{r}
-# #Regression with Capacity and Dummy Variables for type of room:
-#
-# lm2 <- lm(Price ~ Capacity + Private_ind + House_ind, data = sin_listing.clean)
-# summary(lm2)
-# stargazer(lm2, type = "text")
-```
+# 4. Step-wise Regression
+## 4.1 Cleaning Data
+We have two ways of cleaning:
 
-```{r}
-#Regression with Capacity,Dummy Variables and interaction between the two:
-# lm3 <- lm(Price ~ Capacity+Private_ind + House_ind+P_Cap+H_Cap, data = sin_listing.clean)
-# summary(lm3)
-# stargazer(lm3,type = "text")
-
-```
-
-# Define function to clean 
-Comments from Kevin: I have created 2 way of cleaning
-
-- clean_subset_including --> To select the variables we want (I used this for stepwise since built-in stepwise regression function automatically creates dummy variables)
-
-- clean_subset_including --> To select the variables we don't want (I used this for Lasso since there is a lot of dummy variables and I rather exclude those not needed)
+    * **clean_subset_including**: To select the variables we want (I used this for stepwise since built-in stepwise regression function automatically creates dummy variables)
+    * **clean_subset_including**: To select the variables we don't want (I used this for Lasso since there is a lot of dummy variables and I rather exclude those not needed)
 ```{r}
 
 ### For checking number of missing data
@@ -716,8 +687,8 @@ list_after_2019.tpe_clean <- clean_subset_excluding(list_after_2019.tpe_remove)
 ```
 
 
-# Feature Selection - Backward Stepwise Regression
-Comments from Kevin: Can help to double check if the R-squared value looks too high at 0.80 for a real-world dataset?
+## 4.2 Feature Selection - Backward Stepwise Regression
+The R-squared value here is 0.8
 
 ```{r}
 stepwise_regression_model <- function(list_after_2019.country_step) {
@@ -743,7 +714,7 @@ summary(stepwise_regression_model(list_after_2019.tpe_step))
 # summary(forward_regression)
 
 ```
-# Backward Stepwise Regression using Leaps Package
+## 4.3 Backward Stepwise Regression using Leaps Package
 ```{r}
 
 # library(leaps)
@@ -759,7 +730,9 @@ summary(backwardstep_leaps_tpe)$which
 
 ```
 
-# Lasso Regreesion
+#5 Lasso Regression
+
+We now try Lasso Regression for our model.
 ```{r}
 set.seed(100)
 # library(glmnet)
@@ -772,17 +745,13 @@ lasso_cv_nrt= cv.glmnet(as.matrix(list_after_2019.nrt_clean[,!names(list_after_2
 
 lasso_cv_tpe= cv.glmnet(as.matrix(list_after_2019.tpe_clean[,!names(list_after_2019.tpe_clean) %in% c("earnings_since_2019")]),list_after_2019.tpe_clean[,c("earnings_since_2019")],family="gaussian",alpha=1, nfolds=10)
 
-#lasso_cv_sin= cv.glmnet(as.matrix(list_after_2019.sin_clean[,-46]),list_after_2019.sin_clean[,46],family="gaussian",alpha=1, nfolds=10)
-#lasso_cv_hkg= cv.glmnet(as.matrix(list_after_2019.hkg_clean[,-46]),list_after_2019.hkg_clean[,46],family="gaussian",alpha=1, nfolds=10)
-#lasso_cv_nrt= cv.glmnet(as.matrix(list_after_2019.nrt_clean[,-46]),list_after_2019.nrt_clean[,46],family="gaussian",alpha=1, nfolds=10)
-#lasso_cv_tpe= cv.glmnet(as.matrix(list_after_2019.tpe_clean[,-46]),list_after_2019.tpe_clean[,46],family="gaussian",alpha=1, nfolds=10)
-
 lasso_coef.sin <- coef(lasso_cv_sin,s=lasso_cv_sin$lambda.min)
 lasso_coef.hkg <- coef(lasso_cv_hkg,s=lasso_cv_hkg$lambda.min)
 lasso_coef.nrt <- coef(lasso_cv_nrt,s=lasso_cv_nrt$lambda.min)
 lasso_coef.tpe <- coef(lasso_cv_tpe,s=lasso_cv_tpe$lambda.min)
 ```
 
+We now check on the top/ bottom n coefficients scaled by their respective values. 
 ```{r}
 returnDf <- function (model, input_coef) 
 {
@@ -824,25 +793,25 @@ paintGraphCoefs <- function(lasso_coef_top5, topn, city)
   top5_listings.fig
 }
 
-lasso_coef_top5.sin <- returnTopBtmCoefs(lasso_coef_normalised.sin, 10)
-paintGraphCoefs(lasso_coef_top5.sin, 10, "Singapore")
-lasso_coef_top5.nrt <- returnTopBtmCoefs(lasso_coef_normalised.nrt, 10)
-paintGraphCoefs(lasso_coef_top5.nrt, 10, "Tokyo")
-lasso_coef_top5.tpe <- returnTopBtmCoefs(lasso_coef_normalised.tpe, 10)
-paintGraphCoefs(lasso_coef_top5.tpe, 10, "Taipei")
-lasso_coef_top5.hkg <- returnTopBtmCoefs(lasso_coef_normalised.hkg, 10)
-paintGraphCoefs(lasso_coef_top5.hkg, 10, "Hong Kong")
+lasso_coef_top5.sin <- returnTopBtmCoefs(lasso_coef_normalised.sin, 5)
+paintGraphCoefs(lasso_coef_top5.sin, 5, "Singapore")
+lasso_coef_top5.nrt <- returnTopBtmCoefs(lasso_coef_normalised.nrt, 5)
+paintGraphCoefs(lasso_coef_top5.nrt, 5, "Tokyo")
+lasso_coef_top5.tpe <- returnTopBtmCoefs(lasso_coef_normalised.tpe, 5)
+paintGraphCoefs(lasso_coef_top5.tpe, 5, "Taipei")
+lasso_coef_top5.hkg <- returnTopBtmCoefs(lasso_coef_normalised.hkg, 5)
+paintGraphCoefs(lasso_coef_top5.hkg, 5, "Hong Kong")
 
-lasso_coef_btm5.sin <- returnTopBtmCoefs(lasso_coef_normalised.sin, -10)
-paintGraphCoefs(lasso_coef_btm5.sin, -10, "Singapore")
-lasso_coef_btm5.nrt <- returnTopBtmCoefs(lasso_coef_normalised.nrt, -10)
-paintGraphCoefs(lasso_coef_btm5.sin, -10, "Tokyo")
-lasso_coef_btm5.tpe <- returnTopBtmCoefs(lasso_coef_normalised.tpe, -10)
-paintGraphCoefs(lasso_coef_btm5.tpe, -10, "Taipei")
-lasso_coef_btm5.hkg <- returnTopBtmCoefs(lasso_coef_normalised.hkg, -10)
-paintGraphCoefs(lasso_coef_btm5.hkg, -10, "Hong Kong")
+lasso_coef_btm5.sin <- returnTopBtmCoefs(lasso_coef_normalised.sin, -5)
+paintGraphCoefs(lasso_coef_btm5.sin, -5, "Singapore")
+lasso_coef_btm5.nrt <- returnTopBtmCoefs(lasso_coef_normalised.nrt, -5)
+paintGraphCoefs(lasso_coef_btm5.sin, -5, "Tokyo")
+lasso_coef_btm5.tpe <- returnTopBtmCoefs(lasso_coef_normalised.tpe, -5)
+paintGraphCoefs(lasso_coef_btm5.tpe, -5, "Taipei")
+lasso_coef_btm5.hkg <- returnTopBtmCoefs(lasso_coef_normalised.hkg, -5)
+paintGraphCoefs(lasso_coef_btm5.hkg, -5, "Hong Kong")
 ```
-
+And in tabular form:
 ```{r}
 lasso_coef_top5.sin
 lasso_coef_top5.nrt
@@ -854,7 +823,7 @@ lasso_coef_btm5.nrt
 lasso_coef_btm5.tpe
 lasso_coef_btm5.hkg
 ```
-
+A quick check on the mean-squared errors for the respective $\lambda$ values. 
 ```{r}
 plot(lasso_cv_sin)
 plot(lasso_cv_hkg)
@@ -862,34 +831,4 @@ plot(lasso_cv_nrt)
 plot(lasso_cv_tpe)
 ```
 
-# Training the Model
-
-```{r}
-# set.seed(123)
-# # Splitting the data into 80:20
-# train_idx <- sample(1:nrow(list_after_2019.sin_clean), 0.8*nrow(list_after_2019.sin_clean)) 
-# training_sin <- list_after_2019.sin_clean[train_idx,]
-# testing_sin <- list_after_2019.sin_clean[-train_idx,]
-# 
-# final_model_sin <- lm(formula = Price ~ ln_Price + Property_Type + ln_Capacity_x_Private_ind + 
-#     Capacity + Amenities_Wifi + Amenities_Shampoo + Amenities_AC + 
-#     no_of_am + Amenities_Kitchen + hv_email, data = training_sin)
-# summary(final_model_sin)
-
-```
-# Checking Predictive Power and Mean absolute prediction error (MAE)
-Comments from Kevin: Calculated the MAE value, but this number is probably more useful if its a comparison between mo dels.
-
-```{r}
-# predict_sin <- predict(final_model_sin,newdata=testing_sin)
-# MAE_sin <- mean(abs(predict_sin - testing_sin$Price))
-```
-
-# Checking for Assumptions on Outliers and Multicollinearity
-Comments from Kevin: There seems to be out-lying points and issue of multicollinearity - we could either try to resolve or in the interest of time, just state that this is subsequently something we could look into 
-
-```{r}
-# cook=cooks.distance(final_model_sin)
-# plot(cook,type='h',lwd=3,ylab="Cook's Distance")
-# vif(final_model_sin)
-```
+This concludes our notebook.
